@@ -5,6 +5,7 @@ import { CONFIG_DEFECTO, CUENTA_S, AVISO_MS, MAX_MS } from '../comun/config.js';
 import { FACTORES, formatoTiempo } from '../comun/calidad.js';
 import { enviar, OFFSCREEN, AL_ORQUESTADOR, AVISOS } from '../comun/mensajes.js';
 import * as almacen from '../comun/almacen.js';
+import * as superposicion from './superposicion.js';
 
 const CLAVE = 'estado';
 const URL_GRABADORA = 'offscreen/grabadora.html';
@@ -98,7 +99,7 @@ function anotar(sesionId, fases, cambiar) {
     if (sesionId !== estado.sesionId || !fases.includes(estado.fase)) return null;
     const nuevo = cambiar(estado);
     await guardarEstado(nuevo);
-    await actualizarInsignia(nuevo);
+    await actualizarIndicadores(nuevo);
     return nuevo;
   });
 }
@@ -118,10 +119,13 @@ const aviso = ({ sesionId, codigo, ancho, alto }) => anotar(sesionId,
 // ---------------------------------------------------------------------------
 
 async function efectos(estado, evento, cambios) {
-  await actualizarInsignia(estado);
+  await actualizarIndicadores(estado);
   switch (estado.fase) {
     case 'eligiendo': await abrirGrabadora(estado); break;
-    case 'cuenta_atras': programarCuenta(estado.sesionId, estado.cuentaFinMs); break;
+    case 'cuenta_atras':
+      inyectarSuperposicion(estado.sesionId);
+      programarCuenta(estado.sesionId, estado.cuentaFinMs);
+      break;
     case 'grabando': await ordenar(evento === 'cuenta_fin' ? 'grabar' : 'reanudar', estado); break;
     case 'en_pausa': await ordenar('pausar', estado); break;
     case 'cerrando': await ordenar('detener', estado); break;
@@ -193,7 +197,7 @@ function programarCuenta(sesionId, finMs) {
       await aplicar('cuenta_fin', { sesionId });
       return;
     }
-    await actualizarInsignia(estado);
+    await actualizarIndicadores(estado);
     setTimeout(tic, ((restante - 1) % 1000) + 1);
   };
   setTimeout(tic, Math.max(0, ((finMs - Date.now() - 1) % 1000) + 1));
@@ -230,6 +234,22 @@ export async function actualizarInsignia(estado) {
   const color = COLOR[estado.fase];
   if (color) await chrome.action.setBadgeBackgroundColor({ color });
   await chrome.action.setBadgeText({ text: texto });
+}
+
+// Insignia del icono y superposición de la pestaña: los dos siguen al estado.
+async function actualizarIndicadores(estado) {
+  superposicion.avisar(estado);
+  await actualizarInsignia(estado);
+}
+
+// Sin esperar (executeScript puede tardar en una pestaña que carga): al terminar se
+// avisa con el estado de ENTONCES, por si la grabación ya acabó o cambió de fase.
+function inyectarSuperposicion(sesionId) {
+  leerEstado().then(async (estado) => {
+    const vigente = estado.sesionId === sesionId && ['cuenta_atras', 'grabando', 'en_pausa'].includes(estado.fase);
+    if (!vigente || !(await superposicion.inyectar(estado))) return;
+    superposicion.avisar(await leerEstado());
+  }).catch(() => {});
 }
 
 // ---------------------------------------------------------------------------

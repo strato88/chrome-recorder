@@ -100,4 +100,18 @@ function ffprobe(ruta) {
   return JSON.parse(salida);
 }
 
-module.exports = { servirRepo, lanzarExtension, ffprobe };
+const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Repite fn hasta que devuelva algo verdadero; si no, falla con `que` y el último valor.
+async function esperar(fn, { timeout = 20000, intervalo = 100, que = 'condición' } = {}) {
+  const fin = Date.now() + timeout;
+  let ultimo;
+  while (Date.now() < fin) {
+    ultimo = await fn();
+    if (ultimo) return ultimo;
+    await dormir(intervalo);
+  }
+  throw new Error(`Tiempo agotado esperando ${que} (último valor: ${JSON.stringify(ultimo)})`);
+}
+
+module.exports = { servirRepo, lanzarExtension, ffprobe, dormir, esperar };

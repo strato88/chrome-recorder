@@ -10,5 +10,23 @@
   },
   "atajoPausa": {
     "message": "Pausar o reanudar la grabación"
+  },
+  "superCuentaAtras": {
+    "message": "Cuenta atrás de la grabación"
+  },
+  "superControles": {
+    "message": "Controles de la grabación"
+  },
+  "superPausar": {
+    "message": "Pausar grabación"
+  },
+  "superReanudar": {
+    "message": "Reanudar grabación"
+  },
+  "superDetener": {
+    "message": "Detener grabación"
+  },
+  "superOcultar": {
+    "message": "Ocultar controles"
   }
 }
