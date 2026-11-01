@@ -165,7 +165,7 @@ beforeEach(async () => {
     for (const s of await self.grabador.almacen.listarSesiones()) await self.grabador.almacen.borrarSesion(s.id);
   });
   for (const p of ctx.pages().slice(1)) await p.close();
-});
+}, { timeout: 60000 }); // sin tope, un fallo aquí colgaría la ejecución entera
 
 const esperarPastilla = (page) => esperar(async () => {
   const v = await inspeccionar(page);

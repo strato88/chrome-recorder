@@ -7,6 +7,7 @@ export const AL_ORQUESTADOR = Object.freeze({
   reanudar: 'reanudar',
   detener: 'detener',
   cancelar: 'cancelar',
+  revisar: 'revisar', // de una página: «mira si la grabación se ha quedado colgada»
   captura_lista: 'captura_lista', // {sesionId, ancho, alto, original, conAudio, superficie, mime}
   progreso: 'progreso', // {sesionId, ms, bytes}
   terminado: 'terminado', // {sesionId, hayVideo}

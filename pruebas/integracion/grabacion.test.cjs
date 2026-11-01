@@ -115,7 +115,7 @@ before(async () => {
 
 after(async () => { await ext?.cerrar(); });
 
-beforeEach(async () => { if (ext) await limpiar(ext); });
+beforeEach(async () => { if (ext) await limpiar(ext); }, { timeout: 60000 }); // sin tope, un fallo aquí colgaría todo
 
 test('graba pantalla', T, async () => {
   const { sw, ctx } = ext;

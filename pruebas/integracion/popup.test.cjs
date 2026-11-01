@@ -34,7 +34,7 @@ beforeEach(async () => {
     await chrome.storage.session.clear();
     await chrome.storage.local.remove('config');
   });
-});
+}, { timeout: 60000 }); // sin tope, un fallo aquí colgaría la ejecución entera
 
 test('estado inicial: valores por defecto y peso estimado por minuto', T, async () => {
   const page = await abrirPopup();
@@ -203,9 +203,16 @@ test('Grabar inicia la grabación con la configuración, el título y la pestañ
 test('los botones del popup envían pausa, reanudar, detener y cancelar al orquestador', T, async () => {
   const page = await abrirPopup();
   const enviados = [];
-  await ext.sw.evaluate(() => {
+  // El estado es falso, pero el orquestador comprueba que la grabadora existe (si no, da la
+  // grabación por cortada y vuelve a reposo): se abre su documento, que sin sesión solo contesta.
+  await ext.sw.evaluate(async () => {
     self.recibidos = [];
     chrome.runtime.onMessage.addListener((m) => { self.recibidos.push(m.tipo); return false; });
+    if ((await chrome.runtime.getContexts({ contextTypes: ['OFFSCREEN_DOCUMENT'] })).length === 0) {
+      await chrome.offscreen.createDocument({
+        url: 'offscreen/grabadora.html', reasons: ['DISPLAY_MEDIA'], justification: 'prueba',
+      });
+    }
   });
   await ponerEstado({ ...await base(), fase: 'grabando', sesionId: 's1', ms: 1000, ancho: 10, alto: 10 });
   await esperar(() => page.isVisible('#pausar'), { que: 'Pausa' });
@@ -221,6 +228,7 @@ test('los botones del popup envían pausa, reanudar, detener y cancelar al orque
   enviados.push(...tipos);
   assert.deepEqual(enviados.slice(0, 3), ['pausar', 'detener', 'cancelar']);
   await page.close();
+  await ext.sw.evaluate(() => chrome.offscreen.closeDocument().catch(() => {}));
 });
 
 test('teclado: Grabar es alcanzable con Tab y los campos tienen etiqueta', T, async () => {

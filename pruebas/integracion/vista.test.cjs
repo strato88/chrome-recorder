@@ -160,7 +160,7 @@ beforeEach(async () => {
     await chrome.storage.session.remove('vistasRecientes');
   }, plantilla.id);
   for (const p of ctx.pages().slice(1)) if (p !== plantilla.pagina) await p.close();
-});
+}, { timeout: 60000 }); // sin tope, un fallo aquí colgaría la ejecución entera
 
 // ---------------------------------------------------------------------------
 // Vista previa
@@ -334,6 +334,76 @@ test('recuperación: fase colgada en «cerrando» sin grabadora → reposo, insi
   assert.equal((await leerSesion(sw, id)).estado, 'terminada');
 });
 
+// Ronda de corrección 1: sin esperar a que se reinicie el service worker -----------
+
+const abrirPopup = async () => {
+  const pagina = await ext.ctx.newPage();
+  await pagina.goto(`chrome-extension://${ext.extId}/popup/popup.html`);
+  await pagina.waitForSelector('#app[data-listo]');
+  return pagina;
+};
+
+test('recuperación: colgada en «cerrando» con el service worker despierto → abrir el popup la arregla', T, async () => {
+  const { sw } = ext;
+  const id = await grabarSinParar(sw, 2500);
+  await matarGrabadora(sw);
+  // La grabadora murió después de aceptar `detener`: nadie mandará `terminado`.
+  await sw.evaluate(async () => {
+    const { estado: e } = await chrome.storage.session.get('estado');
+    await chrome.storage.session.set({ estado: { ...e, fase: 'cerrando' } });
+  });
+  await sw.evaluate(() => { self.mismoServiceWorker = true; });
+  const popup = await abrirPopup();
+  await esperarFase(sw, 'inactivo', 5000);
+  await esperarVista(id, { recuperada: true, timeout: 5000 });
+  assert.equal(await sw.evaluate(() => self.mismoServiceWorker), true, 'sin reiniciar el service worker');
+  assert.equal(await sw.evaluate(() => chrome.action.getBadgeText({})), '');
+  await esperar(() => popup.isVisible('#grabar'), { timeout: 5000, que: 'el popup en reposo' });
+  assert.equal((await leerSesion(sw, id)).estado, 'terminada');
+});
+
+test('recuperación: «detener» con la grabadora muerta acaba en reposo con la vista recuperada', T, async () => {
+  const { sw } = ext;
+  const id = await grabarSinParar(sw, 2500);
+  await matarGrabadora(sw);
+  await aplicar(sw, 'detener'); // la orden no tiene quien la reciba
+  assert.equal((await estado(sw)).fase, 'inactivo');
+  await esperarVista(id, { recuperada: true, timeout: 5000 });
+  assert.equal((await leerSesion(sw, id)).estado, 'terminada');
+});
+
+test('con una grabación viva, «revisar» y recuperarHuerfanas() no tocan nada', T, async () => {
+  const { sw } = ext;
+  const inicial = await iniciar(sw);
+  const id = inicial.sesionId;
+  await esperarFase(sw, 'grabando');
+  await esperar(async () => (await estado(sw)).bytes > 0, { que: 'el primer trozo' });
+  const popup = await abrirPopup(); // al abrirse ya manda `revisar`
+  const tras = await popup.evaluate(() => chrome.runtime.sendMessage({ tipo: 'revisar' }));
+  assert.equal(tras.fase, 'grabando');
+  assert.deepEqual(await recuperar(sw), []);
+  assert.equal((await estado(sw)).fase, 'grabando');
+  assert.equal((await leerSesion(sw, id)).estado, 'grabando');
+  assert.equal(await offscreens(sw), 1);
+  assert.equal(vistasDe(id).length, 0);
+  // Con la pantalla quieta puede no salir ningún fotograma nuevo (ni bytes): se mira el tiempo.
+  const ms = (await estado(sw)).ms;
+  await dormir(2500);
+  assert.ok((await estado(sw)).ms >= ms + 1500, 'la grabación sigue contando');
+
+  await aplicar(sw, 'detener');
+  const p = await esperarVista(id);
+  assert.equal(p.url(), urlVista(id), 'vista normal, no recuperada');
+  await esperarFase(sw, 'inactivo');
+  assert.equal(await p.locator('#avisos li').count(), 0);
+  await p.click('#guardar');
+  await esperar(async () => (await texto(p, '#resultado')).startsWith('Guardado como'), { que: 'Guardado como' });
+  const r = sondearEscrito((await guardado(p)).escrituras);
+  assert.equal(r.video.codec_name, 'h264');
+  assert.equal(r.video.width, 1440);
+  assert.ok(r.duracion > 2, `duración ${r.duracion}`);
+});
+
 test('recuperación: «iniciar» con la fase colgada recupera la anterior y empieza otra', T, async () => {
   const { sw } = ext;
   const id = await grabarSinParar(sw, 2500);
@@ -353,13 +423,14 @@ test('recuperación: al despertar el service worker con la fase colgada', T, asy
   await matarGrabadora(ext.sw);
   assert.equal((await estado(ext.sw)).fase, 'grabando', 'colgada: nadie avisa');
   // Se para el service worker de verdad (CDP) y se despierta con un mensaje cualquiera.
-  const pagina = await ctx.newPage();
-  await pagina.goto(`chrome-extension://${ext.extId}/popup/popup.html`);
+  // Desde la vista de la plantilla y no desde el popup: el popup ya manda `revisar` al abrirse.
+  const pagina = plantilla.pagina;
   const cdp = await ctx.newCDPSession(pagina);
   await cdp.send('ServiceWorker.enable');
   await ext.sw.evaluate(() => { self.antesDeParar = true; });
   await cdp.send('ServiceWorker.stopAllWorkers');
   await pagina.evaluate(() => chrome.runtime.sendMessage({ tipo: 'despertar' }).catch(() => {}));
+  await cdp.detach();
   await esperarVista(id, { recuperada: true });
   const sw = ext.ctx.serviceWorkers()[0];
   assert.equal(await sw.evaluate(() => self.antesDeParar), undefined, 'es un service worker nuevo');

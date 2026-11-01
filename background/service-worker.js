@@ -136,9 +136,9 @@ async function efectos(estado, evento, cambios) {
       inyectarSuperposicion(estado.sesionId);
       programarCuenta(estado.sesionId, estado.cuentaFinMs);
       break;
-    case 'grabando': await ordenar(evento === 'cuenta_fin' ? 'grabar' : 'reanudar', estado); break;
-    case 'en_pausa': await ordenar('pausar', estado); break;
-    case 'cerrando': await ordenar('detener', estado); break;
+    case 'grabando': await ordenarORecuperar(evento === 'cuenta_fin' ? 'grabar' : 'reanudar', estado); break;
+    case 'en_pausa': await ordenarORecuperar('pausar', estado); break;
+    case 'cerrando': await ordenarORecuperar('detener', estado); break;
     case 'inactivo': await cerrarGrabadora(estado, evento, cambios); break;
     default: break;
   }
@@ -148,6 +148,14 @@ function ordenar(tipo, estado, datos = {}) {
   return enviar(tipo, { ...datos, destino: OFFSCREEN, sesionId: estado.sesionId }).catch((e) => {
     console.error(`Grabador: no se pudo enviar «${tipo}» a la grabadora`, e);
   });
+}
+
+// Si la grabadora no contesta porque ya no existe, nadie mandará `terminado`: se
+// recupera ya (reposo y vista «recuperada») en lugar de dejar la fase colgada.
+// Dentro de la cola.
+async function ordenarORecuperar(tipo, estado) {
+  if (await ordenar(tipo, estado)) return;
+  await recuperarSiColgada();
 }
 
 const hayGrabadora = async () =>
@@ -247,7 +255,8 @@ async function sanearFase() {
   return true;
 }
 
-// Dentro de la cola: solo si la fase se había quedado colgada.
+// Dentro de la cola: solo si la fase se había quedado colgada. Con la grabadora
+// viva no toca nada.
 async function recuperarSiColgada() {
   if ((await leerEstado()).fase === 'inactivo') return;
   if (await sanearFase()) await recuperarSesiones();
@@ -320,6 +329,7 @@ function deFuera(m, remitente) {
     return aplicar('iniciar', { config: m.config, tituloPestana: m.tituloPestana, pestanaId: m.pestanaId });
   }
   if (ORDENES.has(m.tipo) && remitente.id === chrome.runtime.id) return aplicar(m.tipo);
+  if (m.tipo === AL_ORQUESTADOR.revisar && esDeLaExtension(remitente)) return enCola(recuperarSiColgada).then(leerEstado);
   return null;
 }
 

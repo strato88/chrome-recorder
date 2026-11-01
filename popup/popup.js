@@ -228,7 +228,12 @@ async function iniciar() {
   chrome.storage.onChanged.addListener((cambios, area) => {
     if (area === 'session' && cambios.estado) pintar(cambios.estado.newValue ?? { fase: 'inactivo', avisos: [], error: null, ms: 0, bytes: 0 });
   });
-  pintar(await leerEstado());
+  const estado = await leerEstado();
+  pintar(estado);
+  // Si la grabadora murió sin avisar, la fase se quedaría colgada (p. ej. en «Guardando…»
+  // con todo desactivado): se pide al orquestador que lo mire. No se espera la respuesta;
+  // el estado nuevo llega, como siempre, por chrome.storage.
+  if (estado.fase !== 'inactivo') enviar(AL_ORQUESTADOR.revisar).catch(() => {});
   $('app').dataset.listo = '1';
 }
 
