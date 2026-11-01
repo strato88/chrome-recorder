@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   FACTORES, AUDIO_BPS, MAX_PIXELES,
-  bitrateVideo, tamanoConTope, tamanoReintento, bytesPorMinuto, formatoTiempo, formatoPeso,
+  bitrateVideo, tamanoConTope, tamanoReintento, bytesPorMinuto, minutosQueCaben, formatoTiempo, formatoPeso,
 } from '../comun/calidad.js';
 import {
   CONFIG_DEFECTO, TIMESLICE_MS, CUENTA_S, AVISO_MS, MAX_MS, VIGILANTE_MS, REINTENTO_ANCHO,
@@ -78,4 +78,14 @@ test('formatoPeso', () => {
   assert.equal(formatoPeso(0), '0 MB');
   assert.equal(formatoPeso(120e3), '<1 MB');
   assert.equal(formatoPeso(0.6e6), '1 MB');
+});
+
+test('minutosQueCaben: minutos enteros que caben, nunca negativos', () => {
+  const bpm = bytesPorMinuto(1440, 900, 30, 'normal', false); // 20 412 000 B/min
+  assert.equal(bpm, 20412000);
+  assert.equal(minutosQueCaben(bpm * 12.5, bpm), 12);
+  assert.equal(minutosQueCaben(bpm * 60, bpm), 60);
+  assert.equal(minutosQueCaben(bpm - 1, bpm), 0);
+  assert.equal(minutosQueCaben(-5, bpm), 0);
+  assert.equal(minutosQueCaben(1e9, 0), Infinity);
 });

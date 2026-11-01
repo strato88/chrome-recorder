@@ -13,8 +13,15 @@
     <!-- Error o aviso de la última grabación, encima de todo. -->
     <p id="mensaje" class="aviso error" role="status" hidden></p>
 
-    <!-- Parado: configuración y Grabar. -->
+    <!-- Cambios de fase para el lector de pantalla (el tiempo no se anuncia cada segundo). -->
+    <p id="anuncio" class="solo-lector" role="status"></p>
+
+    <!-- Parado: grabaciones sin guardar, configuración y Grabar. -->
     <section id="parado" hidden>
+      <div id="pendientes" class="aviso pendientes" hidden>
+        <span id="pendientes-texto"></span>
+        <button id="abrir-pendientes" type="button" class="btn" data-i18n="popupAbrirPendientes"></button>
+      </div>
       <div class="fila">
         <label for="fuente" data-i18n="popupFuente"></label>
         <select id="fuente" class="campo">
@@ -50,10 +57,10 @@
       <p id="estimacion" class="estimacion mono"></p>
     </section>
 
-    <!-- Grabando / en pausa / guardando. -->
+    <!-- Grabando / en pausa / terminando. -->
     <section id="activo" hidden>
       <p class="estado"><span id="punto" class="punto" aria-hidden="true"></span><span id="estado-texto"></span></p>
-      <p id="tiempo" class="tiempo mono" aria-live="polite"></p>
+      <p id="tiempo" class="tiempo mono" role="timer"></p>
       <dl id="datos" class="datos mono"></dl>
       <ul id="avisos" class="avisos"></ul>
       <div class="acciones">
@@ -65,7 +72,7 @@
     <!-- Eligiendo qué grabar / cuenta atrás. -->
     <section id="espera" hidden>
       <p id="texto-espera" class="espera"></p>
-      <p id="numero" class="tiempo mono" aria-live="polite" hidden></p>
+      <p id="numero" class="tiempo mono" role="timer" hidden></p>
       <button id="cancelar" type="button" class="btn"></button>
     </section>
   </main>

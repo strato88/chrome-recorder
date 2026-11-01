@@ -3,9 +3,11 @@
 // Solo tiene parte de chrome.runtime: el sistema y lo que necesita del almacenamiento
 // le llegan en `abrir`.
 import { TIMESLICE_MS, VIGILANTE_MS } from '../comun/config.js';
-import { AUDIO_BPS, bitrateVideo, tamanoConTope, tamanoReintento, bytesPorMinuto } from '../comun/calidad.js';
+import {
+  AUDIO_BPS, bitrateVideo, tamanoConTope, tamanoReintento, bytesPorMinuto, minutosQueCaben,
+} from '../comun/calidad.js';
 import { elegirCodec } from '../comun/codec.js';
-import { enviar, OFFSCREEN } from '../comun/mensajes.js';
+import { enviar, OFFSCREEN, codigoErrorCaptura } from '../comun/mensajes.js';
 import * as almacen from '../comun/almacen.js';
 import {
   enCurso, activar, vigente, registrar, contexto, msGrabados, avisar, soltar, liberar, sinPendientes, descartar, fallar,
@@ -31,7 +33,7 @@ async function preparar(g) {
       surfaceSwitching: 'exclude',
     });
   } catch (e) {
-    await fallar(g, e?.name === 'NotAllowedError' ? 'cancelado' : 'grabadora', String(e?.message ?? e));
+    await fallar(g, codigoErrorCaptura(e), `${e?.name ?? ''}: ${e?.message ?? e}`);
     return;
   }
   if (!vigente(g)) {
@@ -65,9 +67,11 @@ async function preparar(g) {
   }
   g.mime = codec.mime;
 
-  const { libre } = await almacen.espacio();
+  // Si no cabe la grabación más larga posible, se avisa con los minutos que sí caben.
+  const libre = await espacioLibre(g);
   if (!vigente(g)) return;
-  if (libre < bytesPorMinuto(g.ancho, g.alto, g.config.fps, g.config.calidad, conAudio) * 60) avisar(g, 'poco_espacio');
+  const minutos = minutosQueCaben(libre, bytesPorMinuto(g.ancho, g.alto, g.config.fps, g.config.calidad, conAudio));
+  if (minutos < g.limites.maxMs / 60000) avisar(g, 'poco_espacio', { minutos });
 
   const superficie = ajustes.displaySurface ?? g.config.fuente;
   g.creando = almacen.crearSesion({
@@ -94,6 +98,13 @@ async function preparar(g) {
     superficie,
     mime: g.mime,
   });
+}
+
+// Espacio libre en el disco (en modo de prueba, el que diga el arnés).
+async function espacioLibre(g) {
+  const prueba = Number(g.limites?.libreBytes);
+  if (g.modoPrueba && prueba > 0) return prueba;
+  return (await almacen.espacio()).libre;
 }
 
 // «Dejar de compartir», pestaña o ventana cerrada.
@@ -161,6 +172,7 @@ function alTrozo(g, rec, blob) {
       // Sin espacio (o la base de datos falla): se para y se conserva lo escrito.
       g.sinEspacio = true;
       const codigo = e?.name === 'QuotaExceededError' ? 'sin_espacio' : 'grabadora';
+      g.motivoFin ??= codigo; // aunque ya se estuviera deteniendo: al vídeo le falta el final
       enviar('error', { sesionId: g.sesionId, codigo, detalle: String(e?.message ?? e) }).catch(registrar('error'));
       detener(g); // sin await: detener espera a esta misma cadena
     }
@@ -169,6 +181,7 @@ function alTrozo(g, rec, blob) {
 
 function alFallarRecorder(g, rec, e) {
   if (rec !== g.recorder || !vigente(g)) return;
+  g.motivoFin ??= 'grabadora';
   enviar('error', { sesionId: g.sesionId, codigo: 'grabadora', detalle: String(e?.error?.message ?? 'MediaRecorder') })
     .catch(registrar('error'));
   detener(g);
@@ -182,7 +195,10 @@ function alTic(g) {
     g.avisadoFin = true;
     avisar(g, 'quedan_5_min');
   }
-  if (ms >= g.limites.maxMs) detener(g);
+  if (ms >= g.limites.maxMs) {
+    g.motivoFin ??= 'limite';
+    detener(g);
+  }
 }
 
 // Vigilante: sin primer trozo en VIGILANTE_MS se reintenta una vez más pequeño.
@@ -266,6 +282,7 @@ function detener(g) {
     if (hayVideo) {
       await almacen.actualizarSesion(g.sesionId, {
         estado: 'terminada', duracionMs, bytes: g.bytes, ancho: g.ancho, alto: g.alto, avisos: [...g.avisos],
+        motivoFin: g.motivoFin, // por qué acabó, si no fue el usuario: la vista previa lo dice
       }).catch(registrar('actualizar la sesión'));
     } else {
       await almacen.borrarSesion(g.sesionId).catch(registrar('borrar la sesión'));
@@ -294,7 +311,7 @@ const ORDENES = Object.freeze({
     const g = contexto(m);
     activar(g);
     // No se espera: el selector puede estar abierto mucho rato.
-    preparar(g).catch((e) => fallar(g, 'grabadora', String(e?.message ?? e)));
+    preparar(g).catch((e) => fallar(g, 'no_empezar', String(e?.message ?? e)));
   },
   grabar: conContexto(grabar),
   pausar: conContexto(pausar),

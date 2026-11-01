@@ -35,6 +35,7 @@ export function contexto(m) {
     bytes: 0,
     escrituras: Promise.resolve(), // cadena de anadirTrozo, en orden
     sinEspacio: false,
+    motivoFin: null, // 'sin_espacio' | 'grabadora' | 'limite' (null: lo paró el usuario)
     primerTrozo: false,
     reintentado: false,
     pausado: false,
@@ -100,6 +101,7 @@ export async function descartar(g, { avisar = true } = {}) {
 }
 
 // Error que acaba con la grabación sin vídeo (selector, códec, recorder, resolución).
+// Antes de `grabar` no hay nada grabado: el código lo dice (p. ej. `no_empezar`).
 // Si ya se está deteniendo, detener() es quien manda el final con lo grabado.
 export async function fallar(g, codigo, detalle = null) {
   if (!vigente(g) || g.deteniendo) return;

@@ -285,6 +285,39 @@ test('avisos de resolución reducida y sin sonido', T, async () => {
   assert.ok(avisos.some((t) => /sin sonido/i.test(t)), JSON.stringify(avisos));
 });
 
+test('por qué acabó: sin espacio, fallo de la grabadora y el límite de una hora', T, async () => {
+  const esperado = {
+    sin_espacio: 'Te quedaste sin espacio y la grabación se paró: aquí está lo grabado hasta entonces',
+    grabadora: 'La grabación se cortó por un fallo: aquí está lo grabado hasta entonces',
+    limite: 'La grabación se paró sola al llegar a una hora',
+  };
+  for (const [motivoFin, frase] of Object.entries(esperado)) {
+    const p = await abrirVista(await clonar(plantilla.id, { motivoFin }));
+    assert.deepEqual(await p.locator('#avisos li').allTextContents(), [frase], motivoFin);
+    assert.equal(await p.isEnabled('#guardar'), true);
+    await p.close();
+  }
+});
+
+test('la misma grabación en dos pestañas: la segunda solo dice que ya está abierta', T, async () => {
+  const { sw } = ext;
+  const id = await clonar(plantilla.id);
+  const primera = await abrirVista(id);
+  const segunda = await abrirVista(id);
+  assert.equal(await texto(segunda, '#resultado'), 'Esta grabación ya está abierta en otra pestaña');
+  for (const sel of ['#video', '#guardar', '#descartar', '#ficha']) {
+    assert.equal(await segunda.isVisible(sel), false, `${sel} oculto en la segunda`);
+  }
+  assert.equal(await primera.isEnabled('#guardar'), true, 'la primera sigue como estaba');
+  assert.ok(await leerSesion(sw, id), 'nada se borra');
+  // Cerrada la primera, la segunda ya puede abrirla.
+  await primera.close();
+  await segunda.reload();
+  await segunda.waitForSelector('#app[data-listo]');
+  assert.equal(await segunda.isEnabled('#guardar'), true);
+  assert.equal(await segunda.isVisible('#resultado'), false);
+});
+
 // ---------------------------------------------------------------------------
 // Recuperación
 // ---------------------------------------------------------------------------
@@ -470,4 +503,52 @@ test('recuperación: terminadas sin vista se abren una sola vez; sin trozos se b
   const avisos = await p.locator('#avisos li').allTextContents();
   assert.equal(avisos.length, 1, JSON.stringify(avisos));
   assert.ok(avisos[0].startsWith('Grabación recuperada') && !/final/.test(avisos[0]), avisos[0]);
+});
+
+test('vista previa cerrada sin guardar: el popup lo dice y «Abrir» la vuelve a abrir', T, async () => {
+  const id = await clonar(plantilla.id);
+  const vista = await abrirVista(id);
+  await vista.close(); // cerrada sin querer
+  await dormir(300);
+  // La plantilla tiene su vista abierta: no cuenta.
+  const popup = await abrirPopup();
+  await esperar(() => popup.isVisible('#pendientes'), { timeout: 5000, que: 'la línea de grabaciones sin guardar' });
+  assert.equal(await texto(popup, '#pendientes-texto'), 'Tienes 1 grabación sin guardar');
+  assert.equal(await texto(popup, '#abrir-pendientes'), 'Abrir');
+  await popup.click('#abrir-pendientes');
+  const p = await esperarVista(id, { recuperada: true });
+  assert.equal(await p.isEnabled('#guardar'), true);
+  assert.equal(vistasDe(plantilla.id).length, 1, 'la que ya estaba abierta no se duplica');
+  await esperar(async () => !(await popup.isVisible('#pendientes')), { timeout: 5000, que: 'la línea retirada' });
+
+  // Con todas a la vista, al volver a abrir el popup no sale nada.
+  const otro = await abrirPopup();
+  await dormir(300);
+  assert.equal(await otro.isVisible('#pendientes'), false);
+
+  // La vista que acaba de abrir el orquestador, cerrada enseguida: vuelve a contar
+  // (aunque el orquestador la haya abierto hace menos de 30 s).
+  await p.close();
+  await dormir(300);
+  const cuarto = await abrirPopup();
+  await esperar(() => cuarto.isVisible('#pendientes'), { timeout: 5000, que: 'la línea tras cerrar la reabierta' });
+  assert.equal(await texto(cuarto, '#pendientes-texto'), 'Tienes 1 grabación sin guardar');
+
+  // Dos cerradas: plural.
+  await clonar(plantilla.id);
+  const tercero = await abrirPopup();
+  await esperar(async () => (await texto(tercero, '#pendientes-texto')) === 'Tienes 2 grabaciones sin guardar',
+    { timeout: 5000, que: 'el plural' });
+});
+
+test('el popup no ofrece abrir nada mientras se graba', T, async () => {
+  const { sw } = ext;
+  await clonar(plantilla.id); // pendiente, pero hay una grabación en marcha
+  await iniciar(sw);
+  await esperarFase(sw, 'grabando');
+  const popup = await abrirPopup();
+  const ids = await popup.evaluate(() => chrome.runtime.sendMessage({ tipo: 'pendientes' }));
+  assert.deepEqual(ids, []);
+  assert.equal(await popup.isVisible('#pendientes'), false);
+  assert.equal((await estado(sw)).fase, 'grabando');
 });

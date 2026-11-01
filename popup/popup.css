@@ -12,6 +12,28 @@ body { width: 300px; }
 
 [hidden] { display: none !important; }
 
+/* Solo para el lector de pantalla. */
+.solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Grabaciones sin guardar: aviso con su botón a la derecha. */
+.pendientes {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pendientes .btn { min-height: 30px; padding: 5px 12px; flex: none; }
+
 section {
   display: flex;
   flex-direction: column;

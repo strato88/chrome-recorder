@@ -2,7 +2,7 @@
 // Solo lee el estado de chrome.storage.session (y escucha onChanged): no registra
 // escucha de mensajes, porque el orquestador y la grabadora emiten mensajes a todos.
 import { CONFIG_DEFECTO } from '../comun/config.js';
-import { bytesPorMinuto, formatoTiempo, formatoPeso } from '../comun/calidad.js';
+import { bytesPorMinuto, tamanoConTope, formatoTiempo, formatoPeso } from '../comun/calidad.js';
 import { enviar, AL_ORQUESTADOR, ERRORES, AVISOS } from '../comun/mensajes.js';
 
 const FUENTES = ['browser', 'window', 'monitor'];
@@ -24,7 +24,7 @@ const GRUPO = {
   cerrando: 'activo',
 };
 
-const vista = { grupo: null, fase: null, estado: null, cuenta: null };
+const vista = { grupo: null, fase: null, estado: null, cuenta: null, pendientes: [] };
 
 // ---------------------------------------------------------------------------
 // Configuración
@@ -56,10 +56,10 @@ function pintarFormulario(config) {
   $('fps').value = String(config.fps);
 }
 
+// Con la pantalla en píxeles físicos y el mismo tope que aplicará la grabadora (§4.1).
 function pintarEstimacion() {
   const { calidad, fps, audio } = leerFormulario();
-  const ancho = Math.round(screen.width * devicePixelRatio);
-  const alto = Math.round(screen.height * devicePixelRatio);
+  const { ancho, alto } = tamanoConTope(Math.round(screen.width * devicePixelRatio), Math.round(screen.height * devicePixelRatio));
   const peso = formatoPeso(bytesPorMinuto(ancho, alto, fps, calidad, audio));
   $('estimacion').textContent = texto('popupEstimacion', peso, `${ancho}×${alto}`);
 }
@@ -90,6 +90,21 @@ function pintarMensaje(estado) {
 
 const resolucion = (ancho, alto) => `${ancho}×${alto}`;
 
+// Texto de un aviso. «reducida» lleva las dos resoluciones (null si no se conocen) y
+// «poco_espacio», los minutos que caben.
+function textoAviso(codigo, estado) {
+  if (codigo === 'reducida') {
+    const o = estado.original;
+    if (!(o && estado.ancho && estado.alto)) return null;
+    return texto('avisoReducida', resolucion(estado.ancho, estado.alto), resolucion(o.ancho, o.alto));
+  }
+  if (codigo === 'poco_espacio') {
+    const min = estado.minutosEspacio;
+    return Number.isInteger(min) && min > 0 ? texto('avisoPocoEspacio', min) : texto('avisoPocoEspacioNada');
+  }
+  return texto(`aviso${camel(codigo)}`);
+}
+
 function pintarActivo(estado) {
   const enPausa = estado.fase === 'en_pausa';
   const cerrando = estado.fase === 'cerrando';
@@ -111,19 +126,15 @@ function pintarActivo(estado) {
     fila(texto('popupResolucion'), resolucion(estado.ancho, estado.alto));
   }
 
-  // Un aviso por código. «reducida» lleva las dos resoluciones (y solo se puede
-  // decir si se conocen las dos).
+  // Un aviso por código.
   const lista = $('avisos');
   lista.replaceChildren();
   for (const codigo of estado.avisos ?? []) {
-    if (!AVISOS.includes(codigo)) continue;
-    const o = estado.original;
-    if (codigo === 'reducida' && !(o && estado.ancho && estado.alto)) continue;
+    const t = AVISOS.includes(codigo) ? textoAviso(codigo, estado) : null;
+    if (!t) continue;
     const li = document.createElement('li');
     li.className = 'aviso';
-    li.textContent = codigo === 'reducida'
-      ? texto('avisoReducida', resolucion(estado.ancho, estado.alto), resolucion(o.ancho, o.alto))
-      : texto(`aviso${camel(codigo)}`);
+    li.textContent = t;
     lista.append(li);
   }
 
@@ -147,8 +158,40 @@ function pintarEspera(estado) {
   $('cancelar').disabled = false;
 }
 
+// Grabaciones sin guardar (p. ej. se cerró la vista previa sin querer): solo en reposo.
+function pintarPendientes() {
+  const n = vista.estado?.fase === 'inactivo' ? vista.pendientes.length : 0;
+  $('pendientes').hidden = n === 0;
+  if (n > 0) $('pendientes-texto').textContent = n === 1 ? texto('popupPendienteUna') : texto('popupPendientes', n);
+}
+
+async function buscarPendientes() {
+  try {
+    const ids = await enviar(AL_ORQUESTADOR.pendientes);
+    vista.pendientes = Array.isArray(ids) ? ids : [];
+  } catch (e) {
+    console.warn('Popup: no se pudieron buscar las grabaciones sin guardar', e);
+    vista.pendientes = [];
+  }
+  pintarPendientes();
+}
+
+// Lo que se anuncia (una vez) al cambiar de fase; el tiempo no se anuncia cada segundo.
+const ANUNCIO = {
+  eligiendo: 'popupElegir', cuenta_atras: 'popupCuentaAtras', grabando: 'popupGrabando',
+  en_pausa: 'popupEnPausa', cerrando: 'popupCerrando',
+};
+
+function anunciarFase(estado) {
+  if (vista.fase === null || vista.fase === estado.fase) return;
+  $('anuncio').textContent = Object.hasOwn(ANUNCIO, estado.fase) ? texto(ANUNCIO[estado.fase]) : '';
+}
+
 function pintar(estado) {
+  anunciarFase(estado);
+  const faseAnterior = vista.fase;
   vista.estado = estado;
+  vista.fase = estado.fase;
   const grupo = GRUPO[estado.fase] ?? 'parado';
   const cambioDeGrupo = vista.grupo !== null && vista.grupo !== grupo;
 
@@ -158,6 +201,9 @@ function pintar(estado) {
   if (grupo === 'espera') pintarEspera(estado);
   if (grupo === 'parado') $('grabar').disabled = false;
   vista.grupo = grupo;
+  pintarPendientes();
+  // De vuelta en reposo (p. ej. tras grabar) puede haber otra pendiente: se vuelve a mirar.
+  if (estado.fase === 'inactivo' && faseAnterior !== null && faseAnterior !== 'inactivo') buscarPendientes();
 
   // La cuenta atrás cambia sola cada segundo, sin que cambie el estado guardado.
   clearInterval(vista.cuenta);
@@ -189,6 +235,19 @@ async function grabar() {
     console.error('Popup: no se pudo iniciar la grabación', e);
     boton.disabled = false;
   }
+}
+
+// Abre las vistas previas de las grabaciones sin guardar (el orquestador las abre).
+async function abrirPendientes() {
+  $('abrir-pendientes').disabled = true;
+  try {
+    await enviar(AL_ORQUESTADOR.abrir_pendientes);
+    vista.pendientes = [];
+    pintarPendientes();
+  } catch (e) {
+    console.error('Popup: no se pudieron abrir las grabaciones sin guardar', e);
+  }
+  $('abrir-pendientes').disabled = false;
 }
 
 // Pausa, Detener y Cancelar: se desactivan hasta que llegue el estado nuevo.
@@ -224,6 +283,7 @@ async function iniciar() {
   $('pausar').addEventListener('click', () => orden(vista.estado?.fase === 'en_pausa' ? 'reanudar' : 'pausar', 'pausar'));
   $('detener').addEventListener('click', () => orden('detener', 'detener'));
   $('cancelar').addEventListener('click', () => orden('cancelar', 'cancelar'));
+  $('abrir-pendientes').addEventListener('click', abrirPendientes);
 
   chrome.storage.onChanged.addListener((cambios, area) => {
     if (area === 'session' && cambios.estado) pintar(cambios.estado.newValue ?? { fase: 'inactivo', avisos: [], error: null, ms: 0, bytes: 0 });
@@ -234,6 +294,7 @@ async function iniciar() {
   // con todo desactivado): se pide al orquestador que lo mire. No se espera la respuesta;
   // el estado nuevo llega, como siempre, por chrome.storage.
   if (estado.fase !== 'inactivo') enviar(AL_ORQUESTADOR.revisar).catch(() => {});
+  else await buscarPendientes();
   $('app').dataset.listo = '1';
 }
 

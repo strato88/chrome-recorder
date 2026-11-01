@@ -28,10 +28,29 @@
     superReanudar: 'Reanudar grabación',
     superDetener: 'Detener grabación',
     superOcultar: 'Ocultar controles',
+    superAvisos: 'Avisos de la grabación',
+    superSinSonido: 'Sin sonido',
+    superQuedan5Min: 'Quedan 5 min',
+    superPocoEspacio: 'Espacio para $1 min',
+    superPocoEspacioNada: 'Casi sin espacio',
   };
-  const texto = (clave) => {
-    try { return chrome.i18n.getMessage(clave) || TEXTOS[clave]; } catch { return TEXTOS[clave]; }
+  const texto = (clave, ...sustituciones) => {
+    const reserva = () => (TEXTOS[clave] ?? '').replace('$1', String(sustituciones[0] ?? ''));
+    try { return chrome.i18n.getMessage(clave, sustituciones.map(String)) || reserva(); } catch { return reserva(); }
   };
+
+  // Avisos que caben en la pastilla, en este orden, con su texto corto.
+  function textosAvisos(estado) {
+    const codigos = Array.isArray(estado.avisos) ? estado.avisos : [];
+    const lista = [];
+    if (codigos.includes('sin_audio')) lista.push(texto('superSinSonido'));
+    if (codigos.includes('poco_espacio')) {
+      const min = estado.minutosEspacio;
+      lista.push(Number.isInteger(min) && min > 0 ? texto('superPocoEspacio', min) : texto('superPocoEspacioNada'));
+    }
+    if (codigos.includes('quedan_5_min')) lista.push(texto('superQuedan5Min'));
+    return lista;
+  }
 
   const ESTILO = `
     :host { all: initial; }
@@ -64,6 +83,11 @@
     }
     .tiempo { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; font-size: 14px;
       font-variant-numeric: tabular-nums; min-width: 5ch; text-align: center; }
+    /* Avisos: tinte ámbar con texto ámbar (5,4:1), como los avisos del popup. */
+    .avisos { display: flex; gap: 4px; }
+    .avisos:empty { display: none; }
+    .aviso { padding: 4px 8px; border-radius: 999px; background: #FFF4DB; color: #8A5A00;
+      font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; }
     button {
       all: unset; box-sizing: border-box; width: 30px; height: 30px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center; cursor: pointer; color: #fff;
@@ -84,7 +108,7 @@
   };
 
   // Lo que se pinta: una sola vez creado, después solo se actualiza.
-  let vista = null; // {host, numero, pastilla, punto, tiempo, bPausa, bDetener, bOcultar}
+  let vista = null; // {host, numero, pastilla, punto, tiempo, avisos, bPausa, bDetener, bOcultar}
   let ocultaEn = null; // sesión cuya pastilla se ocultó: sigue oculta el resto de esa grabación
   let ultimaSesion = null; // sesión del último aviso recibido
 
@@ -131,6 +155,12 @@
     const tiempo = document.createElement('span');
     tiempo.className = 'tiempo';
     tiempo.dataset.parte = 'tiempo';
+    // Solo cambia cuando llega un aviso nuevo, así que se anuncia una vez.
+    const avisos = document.createElement('span');
+    avisos.className = 'avisos';
+    avisos.dataset.parte = 'avisos';
+    avisos.setAttribute('role', 'status');
+    avisos.setAttribute('aria-label', texto('superAvisos'));
     const bPausa = boton(ICONOS.pausa, texto('superPausar'), () => enviar(bPausa.dataset.accion));
     bPausa.dataset.accion = 'pausar';
     const bDetener = boton(ICONOS.detener, texto('superDetener'), () => enviar('detener'));
@@ -138,13 +168,13 @@
       ocultaEn = ultimaSesion;
       retirar();
     });
-    pastilla.append(punto, tiempo, bPausa, bDetener, bOcultar);
+    pastilla.append(punto, tiempo, avisos, bPausa, bDetener, bOcultar);
     hacerArrastrable(pastilla);
 
     capa.append(numero, pastilla);
     raiz.append(estilo, capa);
     (document.body || document.documentElement).append(host);
-    return { host, numero, pastilla, punto, tiempo, bPausa, bDetener, bOcultar };
+    return { host, numero, pastilla, punto, tiempo, avisos, bPausa, bDetener, bOcultar };
   }
 
   // Arrastre con el puntero desde cualquier parte de la pastilla que no sea un botón.
@@ -197,6 +227,7 @@
       vista.pastilla.classList.toggle('pausa', enPausa);
       vista.pastilla.classList.toggle('grabando', fase === 'grabando');
       vista.tiempo.textContent = formatoTiempo(estado.ms);
+      pintarAvisos(textosAvisos(estado));
       const etiqueta = texto(enPausa ? 'superReanudar' : 'superPausar');
       vista.bPausa.dataset.accion = enPausa ? 'reanudar' : 'pausar';
       vista.bPausa.innerHTML = enPausa ? ICONOS.reanudar : ICONOS.pausa;
@@ -205,6 +236,18 @@
       vista.bPausa.disabled = fase === 'cerrando';
       vista.bDetener.disabled = fase === 'cerrando';
     }
+  }
+
+  // Se rehace solo si cambia el texto: con cada segundo no se vuelve a anunciar.
+  function pintarAvisos(lista) {
+    if (vista.avisos.dataset.textos === lista.join('|')) return;
+    vista.avisos.dataset.textos = lista.join('|');
+    vista.avisos.replaceChildren(...lista.map((t) => {
+      const el = document.createElement('span');
+      el.className = 'aviso';
+      el.textContent = t;
+      return el;
+    }));
   }
 
   chrome.runtime.onMessage.addListener((m) => {

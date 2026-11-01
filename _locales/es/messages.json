@@ -29,6 +29,26 @@
   "superOcultar": {
     "message": "Ocultar controles"
   },
+  "superAvisos": {
+    "message": "Avisos de la grabación"
+  },
+  "superSinSonido": {
+    "message": "Sin sonido"
+  },
+  "superQuedan5Min": {
+    "message": "Quedan 5 min"
+  },
+  "superPocoEspacio": {
+    "message": "Espacio para $MIN$ min",
+    "placeholders": {
+      "min": {
+        "content": "$1"
+      }
+    }
+  },
+  "superPocoEspacioNada": {
+    "message": "Casi sin espacio"
+  },
   "errorSinVideo": {
     "message": "La grabación ha sido demasiado corta: no se ha guardado nada"
   },
@@ -77,6 +97,20 @@
   "popupGrabar": {
     "message": "Grabar"
   },
+  "popupPendienteUna": {
+    "message": "Tienes 1 grabación sin guardar"
+  },
+  "popupPendientes": {
+    "message": "Tienes $N$ grabaciones sin guardar",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupAbrirPendientes": {
+    "message": "Abrir"
+  },
   "popupEstimacion": {
     "message": "≈ $PESO$ por minuto a $RES$",
     "placeholders": {
@@ -95,7 +129,7 @@
     "message": "En pausa"
   },
   "popupCerrando": {
-    "message": "Guardando la grabación…"
+    "message": "Terminando la grabación…"
   },
   "popupPeso": {
     "message": "Peso"
@@ -123,6 +157,12 @@
   },
   "errorCancelado": {
     "message": "Grabación cancelada"
+  },
+  "errorPermisoSistema": {
+    "message": "Chrome no tiene permiso para grabar la pantalla. Actívalo en Ajustes del Sistema → Privacidad y seguridad → Grabación de pantalla y audio del sistema, y reinicia Chrome."
+  },
+  "errorNoEmpezar": {
+    "message": "No se ha podido empezar a grabar"
   },
   "errorLinux": {
     "message": "Esta extensión funciona en Windows y macOS"
@@ -157,7 +197,15 @@
     "message": "Reintentando a menor resolución"
   },
   "avisoPocoEspacio": {
-    "message": "Puede que no haya espacio para una hora de grabación"
+    "message": "Solo hay espacio en el disco para unos $MIN$ minutos de grabación",
+    "placeholders": {
+      "min": {
+        "content": "$1"
+      }
+    }
+  },
+  "avisoPocoEspacioNada": {
+    "message": "Casi no queda espacio en el disco: la grabación se parará enseguida"
   },
   "avisoQuedan5Min": {
     "message": "Quedan 5 minutos: la grabación se parará a la hora"
@@ -260,5 +308,17 @@
   },
   "vistaAvisoSinAudio": {
     "message": "Grabación sin sonido: Chrome no dio el audio de esta fuente en tu sistema"
+  },
+  "vistaFinSinEspacio": {
+    "message": "Te quedaste sin espacio y la grabación se paró: aquí está lo grabado hasta entonces"
+  },
+  "vistaFinGrabadora": {
+    "message": "La grabación se cortó por un fallo: aquí está lo grabado hasta entonces"
+  },
+  "vistaFinLimite": {
+    "message": "La grabación se paró sola al llegar a una hora"
+  },
+  "vistaYaAbierta": {
+    "message": "Esta grabación ya está abierta en otra pestaña"
   }
 }

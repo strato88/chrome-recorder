@@ -7,7 +7,7 @@ import { enviar, OFFSCREEN, AL_ORQUESTADOR, AVISOS } from '../comun/mensajes.js'
 import * as almacen from '../comun/almacen.js';
 import * as superposicion from './superposicion.js';
 import { iconosDeFase, textoInsignia, COLOR_INSIGNIA } from './indicadores.js';
-import { abrirVista, recuperarSesiones } from './recuperacion.js';
+import { abrirVista, recuperarSesiones, sesionesPendientes } from './recuperacion.js';
 
 const CLAVE = 'estado';
 const URL_GRABADORA = 'offscreen/grabadora.html';
@@ -115,10 +115,12 @@ function anotar(sesionId, fases, cambiar) {
 const progreso = ({ sesionId, ms, bytes }) => anotar(sesionId, ['grabando', 'en_pausa', 'cerrando'],
   (e) => ({ ...e, ms: Number(ms) || 0, bytes: Number(bytes) || 0 }));
 
-const aviso = ({ sesionId, codigo, ancho, alto }) => anotar(sesionId,
+const aviso = ({ sesionId, codigo, ancho, alto, minutos }) => anotar(sesionId,
   ['eligiendo', 'cuenta_atras', 'grabando', 'en_pausa', 'cerrando'], (e) => {
     const nuevo = { ...e, avisos: e.avisos.includes(codigo) ? e.avisos : [...e.avisos, codigo] };
     if (Number.isInteger(ancho) && Number.isInteger(alto)) Object.assign(nuevo, { ancho, alto });
+    // Minutos de grabación que caben en el disco (el popup y la pastilla los dicen).
+    if (codigo === 'poco_espacio') nuevo.minutosEspacio = Math.max(0, Math.floor(Number(minutos) || 0));
     return nuevo;
   });
 
@@ -172,6 +174,7 @@ async function opcionesPrueba() {
   if (prueba && limitesPrueba) {
     if (Number(limitesPrueba.avisoMs) > 0) limites.avisoMs = Number(limitesPrueba.avisoMs);
     if (Number(limitesPrueba.maxMs) > 0) limites.maxMs = Number(limitesPrueba.maxMs);
+    if (Number(limitesPrueba.libreBytes) > 0) limites.libreBytes = Number(limitesPrueba.libreBytes);
   }
   return { prueba, limites };
 }
@@ -200,7 +203,7 @@ async function abrirGrabadora(estado) {
   } catch (e) {
     console.error('Grabador: no se pudo abrir la grabadora', e);
     // Fuera de la cola actual: se aplica en cuanto termine este cambio.
-    aplicar('error', { sesionId: estado.sesionId, codigo: 'grabadora', detalle: String(e?.message ?? e) });
+    aplicar('error', { sesionId: estado.sesionId, codigo: 'no_empezar', detalle: String(e?.message ?? e) });
   }
 }
 
@@ -330,7 +333,19 @@ function deFuera(m, remitente) {
   }
   if (ORDENES.has(m.tipo) && remitente.id === chrome.runtime.id) return aplicar(m.tipo);
   if (m.tipo === AL_ORQUESTADOR.revisar && esDeLaExtension(remitente)) return enCola(recuperarSiColgada).then(leerEstado);
+  if (m.tipo === AL_ORQUESTADOR.pendientes && esDeLaExtension(remitente)) return pendientes();
+  if (m.tipo === AL_ORQUESTADOR.abrir_pendientes && esDeLaExtension(remitente)) return recuperarHuerfanas();
   return null;
+}
+
+// Grabaciones sin guardar ni descartar y sin vista abierta (p. ej. se cerró la pestaña
+// de la vista previa sin querer). Solo en reposo: con una grabación en marcha, su
+// sesión no es una pendiente.
+function pendientes() {
+  return enCola(async () => {
+    await recuperarSiColgada();
+    return (await leerEstado()).fase === 'inactivo' ? sesionesPendientes() : [];
+  });
 }
 
 // Noticias de la grabadora.

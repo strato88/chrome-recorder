@@ -25,6 +25,9 @@ const MOTIVOS = {
 };
 const motivo = (e) => texto(MOTIVOS[e?.name] ?? 'vistaMotivoOtro');
 
+// Por qué acabó la grabación, cuando no la paró el usuario (lo anota la grabadora).
+const FINES = { sin_espacio: 'vistaFinSinEspacio', grabadora: 'vistaFinGrabadora', limite: 'vistaFinLimite' };
+
 const vista = { id: null, recuperada: false, sesion: null, trozos: [], url: null, nombre: '' };
 
 // ---------------------------------------------------------------------------
@@ -40,6 +43,7 @@ function pintarResultado(mensaje, tipo) {
 
 function avisos(sesion, recuperada) {
   const lista = [];
+  if (Object.hasOwn(FINES, sesion.motivoFin ?? '')) lista.push(texto(FINES[sesion.motivoFin]));
   if (recuperada) lista.push(texto(sesion.cortada ? 'vistaAvisoCortada' : 'vistaAvisoRecuperada'));
   const codigos = sesion.avisos ?? [];
   const o = sesion.original;
@@ -223,6 +227,36 @@ async function cargar() {
   return vista.trozos.length > 0;
 }
 
+// Una sola pestaña por grabación: la primera se queda el candado (hasta que se cierra)
+// y la que llega después solo lo dice, sin Guardar ni Descartar. `trabajo` se ejecuta
+// con el candado; devuelve false si ya lo tenía otra pestaña.
+function conCandado(id, trabajo) {
+  if (!navigator.locks) return trabajo().then(() => true); // sin Web Locks, sin la protección
+  return new Promise((resolver, rechazar) => {
+    navigator.locks.request(`vista:${id}`, { ifAvailable: true }, async (candado) => {
+      if (!candado) { resolver(false); return; }
+      try {
+        await trabajo();
+        resolver(true);
+      } catch (e) {
+        rechazar(e);
+      }
+      await new Promise(() => {}); // se suelta al cerrar la pestaña
+    }).catch(rechazar);
+  });
+}
+
+async function mostrar() {
+  let hay = false;
+  try {
+    hay = await cargar();
+  } catch (e) {
+    console.error('Vista: no se pudo leer la grabación', e);
+  }
+  if (hay) pintarSesion();
+  else pintarResultado(texto('vistaNoExiste'), 'info');
+}
+
 async function iniciar() {
   document.title = texto('vistaTituloPagina');
   for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = texto(el.dataset.i18n);
@@ -238,14 +272,9 @@ async function iniciar() {
   });
   addEventListener('pagehide', soltarVideo);
 
-  let hay = false;
-  try {
-    hay = await cargar();
-  } catch (e) {
-    console.error('Vista: no se pudo leer la grabación', e);
-  }
-  if (hay) pintarSesion();
-  else pintarResultado(texto('vistaNoExiste'), 'info');
+  const id = new URLSearchParams(location.search).get('sesion');
+  if (!id) await mostrar();
+  else if (!(await conCandado(id, mostrar))) pintarResultado(texto('vistaYaAbierta'), 'info');
   $('app').dataset.listo = '1';
 }
 

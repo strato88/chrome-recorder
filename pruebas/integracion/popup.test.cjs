@@ -21,8 +21,9 @@ const base = async () => ({
   tituloPestana: '', pestanaId: null, avisos: [], error: null,
 });
 
-async function abrirPopup() {
+async function abrirPopup({ antes } = {}) {
   const page = await ext.ctx.newPage();
+  if (antes) await page.addInitScript(antes);
   await page.goto(`chrome-extension://${ext.extId}/popup/popup.html`);
   await page.waitForSelector('#app[data-listo]');
   return page;
@@ -79,6 +80,19 @@ test('una configuración guardada estropeada vuelve a los valores por defecto', 
   await page.close();
 });
 
+test('el peso estimado usa el tope de resolución que aplicará la grabadora', T, async () => {
+  // Pantalla 5K (2560×1440 a escala 2): se grabará reducida a 4096×2304.
+  const page = await abrirPopup({
+    antes: () => {
+      Object.defineProperty(screen, 'width', { get: () => 2560 });
+      Object.defineProperty(screen, 'height', { get: () => 1440 });
+    },
+  });
+  assert.equal(await page.evaluate(() => devicePixelRatio), 2);
+  assert.match(await page.textContent('#estimacion'), / a 4096×2304$/);
+  await page.close();
+});
+
 test('el peso estimado cambia con la calidad y el audio', T, async () => {
   const page = await abrirPopup();
   const mb = async () => Number((await page.textContent('#estimacion')).match(/≈ (\d+) MB/)[1]);
@@ -101,7 +115,10 @@ test('grabando: tiempo, peso, resolución, Pausa y Detener; se repinta en vivo',
   assert.match(await page.textContent('#datos'), /1920×1080/);
   assert.equal((await page.textContent('#pausar')).trim(), 'Pausa');
   assert.equal(await page.isVisible('#grabar'), false);
-  assert.equal(await page.getAttribute('#tiempo', 'aria-live'), 'polite');
+  // El tiempo es un temporizador que no se anuncia cada segundo; los cambios de fase sí.
+  assert.equal(await page.getAttribute('#tiempo', 'role'), 'timer');
+  assert.equal(await page.getAttribute('#tiempo', 'aria-live'), null);
+  assert.equal(await page.getAttribute('#anuncio', 'role'), 'status');
 
   // Llega más progreso: el tiempo se actualiza sin recargar.
   await ponerEstado({
@@ -114,6 +131,12 @@ test('grabando: tiempo, peso, resolución, Pausa y Detener; se repinta en vivo',
   // En pausa el botón pasa a Reanudar.
   await ponerEstado({ ...await base(), fase: 'en_pausa', sesionId: 's1', ms: 125000, bytes: 1.5e9, ancho: 1920, alto: 1080 });
   await esperar(async () => (await page.textContent('#pausar')).trim() === 'Reanudar', { que: 'Reanudar' });
+  assert.equal((await page.textContent('#anuncio')).trim(), 'En pausa');
+
+  // Detenida: «Terminando la grabación…» (aún falta pulsar Guardar en la vista previa).
+  await ponerEstado({ ...await base(), fase: 'cerrando', sesionId: 's1', ms: 125000, bytes: 1.5e9, ancho: 1920, alto: 1080 });
+  await esperar(async () => (await page.textContent('#estado-texto')).trim() === 'Terminando la grabación…', { que: 'Terminando' });
+  assert.equal((await page.textContent('#anuncio')).trim(), 'Terminando la grabación…');
   await page.close();
 });
 
@@ -122,15 +145,16 @@ test('grabando: resolución reducida y avisos en lenguaje claro, uno por código
   await ponerEstado({
     ...await base(), fase: 'grabando', sesionId: 's1', ms: 1000, bytes: 1e6,
     ancho: 3840, alto: 2160, original: { ancho: 5120, alto: 2880 },
-    avisos: ['sin_audio', 'reducida', 'quedan_5_min'],
+    avisos: ['sin_audio', 'reducida', 'quedan_5_min', 'poco_espacio'], minutosEspacio: 23,
   });
   await esperar(() => page.isVisible('#detener'), { que: 'el botón Detener' });
   assert.match(await page.textContent('#datos'), /3840×2160/);
   const avisos = await page.locator('#avisos li').allTextContents();
-  assert.equal(avisos.length, 3);
+  assert.equal(avisos.length, 4);
   assert.match(avisos[0], /Grabando sin sonido/);
   assert.match(avisos[1], /Grabando a 3840×2160 \(reducida desde 5120×2880\)/);
   assert.match(avisos[2], /Quedan 5 minutos/);
+  assert.equal(avisos[3], 'Solo hay espacio en el disco para unos 23 minutos de grabación');
   await page.close();
 });
 
@@ -155,6 +179,8 @@ test('error: cada código se explica en claro, encima del formulario', T, async 
     resolucion: 'No se ha podido grabar a esta resolución',
     sin_video: 'La grabación ha sido demasiado corta: no se ha guardado nada',
     cancelado: 'Grabación cancelada',
+    permiso_sistema: 'Ajustes del Sistema → Privacidad y seguridad → Grabación de pantalla y audio del sistema',
+    no_empezar: 'No se ha podido empezar a grabar',
   };
   const page = await abrirPopup();
   for (const [codigo, texto] of Object.entries(esperado)) {

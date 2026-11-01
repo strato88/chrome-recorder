@@ -311,6 +311,37 @@ test('sin duplicar', T, async () => {
   assert.ok(p.buscar(parte('pastilla')));
 });
 
+test('avisos en la pastilla: sin sonido, espacio que queda y quedan 5 min', T, async () => {
+  const { sw } = ext;
+  // La pantalla de Xvfb no da audio aunque se pida; 12,5 min de espacio; aviso a los 2 s.
+  await sw.evaluate(() => chrome.storage.local.set({ limitesPrueba: { avisoMs: 2000, libreBytes: 20412000 * 12.5 } }));
+  try {
+    const { page, tabId } = await abrirPagina(ext, url);
+    await aplicar(sw, 'iniciar', { config: { ...PANTALLA, audio: true }, tituloPestana: '', pestanaId: tabId });
+    const e = await esperarFase(sw, 'grabando');
+    assert.equal(e.conAudio, false);
+    assert.ok(e.avisos.includes('sin_audio'), JSON.stringify(e.avisos));
+    const textos = () => inspeccionar(page).then((v) => {
+      const avisos = v.buscar((a) => a['data-parte'] === 'avisos');
+      return avisos && { rol: atributos(avisos).role, texto: v.texto(avisos), hijos: avisos.children ?? [] };
+    });
+    const a = await esperar(async () => {
+      const t = await textos();
+      return t?.texto.includes('Quedan 5 min') && t;
+    }, { timeout: 15000, que: 'los avisos de la pastilla' });
+    assert.equal(a.rol, 'status');
+    assert.deepEqual(a.hijos.map(textoDe), ['Sin sonido', 'Espacio para 12 min', 'Quedan 5 min']);
+    // Ámbar y no rojo: el fondo del primer aviso es el tinte ámbar (#FFF4DB).
+    const v = await inspeccionar(page);
+    const caja = await v.centro(v.buscar((x) => x['data-parte'] === 'avisos'));
+    const color = await colorEn(page, caja.izq + 3, caja.y);
+    assert.ok(Math.abs(color[0] - 0xFF) <= 6 && Math.abs(color[1] - 0xF4) <= 6 && Math.abs(color[2] - 0xDB) <= 6,
+      `color ${color}`);
+  } finally {
+    await sw.evaluate(() => chrome.storage.local.remove('limitesPrueba'));
+  }
+});
+
 test('cancelar en la cuenta atrás retira el círculo y no deja número en la insignia', T, async () => {
   const { sw } = ext;
   const { page, tabId } = await abrirPagina(ext, url);

@@ -226,12 +226,40 @@ test('límites', T, async () => {
   const inicial = await iniciar(sw);
   await esperarFase(sw, 'grabando');
   await esperar(async () => (await estado(sw)).avisos.includes('quedan_5_min'), { que: 'el aviso quedan_5_min' });
-  await esperarVista(ctx, inicial.sesionId);
+  const vista = await esperarVista(ctx, inicial.sesionId);
   const fin = await esperarFase(sw, 'inactivo');
   assert.ok(fin.avisos.includes('quedan_5_min'));
+  // La vista previa dice por qué acabó.
+  const sesion = await sw.evaluate((id) => self.grabador.almacen.leerSesion(id), inicial.sesionId);
+  assert.equal(sesion.motivoFin, 'limite');
+  const avisos = await vista.locator('#avisos li').allTextContents();
+  assert.deepEqual(avisos, ['La grabación se paró sola al llegar a una hora']);
   const r = await sondear(sw, inicial.sesionId);
   assert.equal(r.video.codec_name, 'h264');
   assert.ok(r.duracion >= 3 && r.duracion <= 7, `duración ${r.duracion}`);
+});
+
+test('detener a mano: sin motivo de fin en la vista', T, async () => {
+  const { sw, ctx } = ext;
+  const inicial = await iniciar(sw);
+  await esperarFase(sw, 'grabando');
+  await esperar(async () => (await estado(sw)).bytes > 0, { que: 'el primer trozo' });
+  await aplicar(sw, 'detener');
+  const vista = await esperarVista(ctx, inicial.sesionId);
+  await esperarFase(sw, 'inactivo');
+  const sesion = await sw.evaluate((id) => self.grabador.almacen.leerSesion(id), inicial.sesionId);
+  assert.equal(sesion.motivoFin, null);
+  assert.equal(await vista.locator('#avisos li').count(), 0);
+});
+
+test('poco espacio: el aviso lleva los minutos que caben', T, async () => {
+  const { sw } = ext;
+  // 1440×900, 30 fps, Normal, sin audio: 20 412 000 bytes por minuto → caben 12 min.
+  await sw.evaluate(() => chrome.storage.local.set({ limitesPrueba: { libreBytes: 20412000 * 12.5 } }));
+  await iniciar(sw);
+  const e = await esperarFase(sw, 'grabando');
+  assert.ok(e.avisos.includes('poco_espacio'), JSON.stringify(e.avisos));
+  assert.equal(e.minutosEspacio, 12);
 });
 
 test('vigilante', T, async () => {
@@ -291,11 +319,15 @@ test('un error de escritura al detener conserva lo grabado', T, async () => {
   const antes = (await estado(sw)).bytes;
   await alOffscreen(sw, 'probar_sin_espacio'); // el siguiente anadirTrozo lanza QuotaExceededError
   await aplicar(sw, 'detener'); // puede llegar tarde si un trozo periódico ya ha fallado
-  await esperarVista(ctx, inicial.sesionId);
+  const vista = await esperarVista(ctx, inicial.sesionId);
   const fin = await esperarFase(sw, 'inactivo');
   assert.equal(fin.error?.codigo, 'sin_espacio');
   const sesion = await sw.evaluate((id) => self.grabador.almacen.leerSesion(id), inicial.sesionId);
   assert.equal(sesion?.estado, 'terminada');
+  // La vista previa dice por qué acabó (el popup, que lo decía antes, ya está cerrado).
+  assert.equal(sesion.motivoFin, 'sin_espacio');
+  const avisos = await vista.locator('#avisos li').allTextContents();
+  assert.ok(avisos.some((t) => t.startsWith('Te quedaste sin espacio')), JSON.stringify(avisos));
   assert.ok(sesion.bytes >= antes && sesion.bytes > 0, `bytes ${sesion.bytes} (antes ${antes})`);
   const r = await sondear(sw, inicial.sesionId);
   assert.equal(r.video.codec_name, 'h264');

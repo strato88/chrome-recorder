@@ -36,6 +36,12 @@ export function bytesPorMinuto(ancho, alto, fps, nivel, conAudio) {
   return Math.round(bps * 60 / 8);
 }
 
+// Minutos enteros de grabación que caben en `libre` bytes a `bytesMinuto` por minuto.
+export function minutosQueCaben(libre, bytesMinuto) {
+  if (!(bytesMinuto > 0)) return Infinity;
+  return Math.max(0, Math.floor(Math.max(0, libre) / bytesMinuto));
+}
+
 export function formatoTiempo(ms) {
   const total = Math.floor(Math.max(0, ms) / 1000);
   const mm = String(Math.floor(total / 60)).padStart(2, '0');
