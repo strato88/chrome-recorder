@@ -1,0 +1,14 @@
+{
+  "nombre": {
+    "message": "Grabador MP4"
+  },
+  "descripcion": {
+    "message": "Graba una pestaña, una ventana o la pantalla en MP4"
+  },
+  "atajoGrabacion": {
+    "message": "Iniciar o detener la grabación"
+  },
+  "atajoPausa": {
+    "message": "Pausar o reanudar la grabación"
+  }
+}

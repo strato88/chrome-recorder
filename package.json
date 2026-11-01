@@ -1,0 +1,9 @@
+{
+  "name": "grabador-mp4",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test pruebas/*.test.js",
+    "test:integracion": "xvfb-run -a -s \"-screen 0 1440x900x24\" node --test --test-concurrency=1 pruebas/integracion/*.test.cjs"
+  }
+}
