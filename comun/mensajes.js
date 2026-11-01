@@ -30,7 +30,7 @@ export const A_GRABADORA = Object.freeze({
   probar_recorder_roto: 'probar_recorder_roto',
 });
 
-export const ERRORES = Object.freeze(['cancelado', 'linux', 'sin_mp4', 'sin_espacio', 'grabadora', 'resolucion']);
+export const ERRORES = Object.freeze(['cancelado', 'linux', 'sin_mp4', 'sin_espacio', 'grabadora', 'resolucion', 'sin_video']);
 export const AVISOS = Object.freeze(['sin_audio', 'reducida', 'reintento', 'poco_espacio', 'quedan_5_min']);
 
 // Errores de sendMessage que solo dicen «nadie ha contestado».

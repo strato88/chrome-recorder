@@ -28,5 +28,8 @@
   },
   "superOcultar": {
     "message": "Ocultar controles"
+  },
+  "errorSinVideo": {
+    "message": "La grabación ha sido demasiado corta: no se ha guardado nada"
   }
 }

@@ -222,7 +222,7 @@ test('detener desde la pastilla', T, async () => {
   const inicial = await iniciar(sw, tabId);
   await esperarFase(sw, 'grabando');
   const p = await esperarPastilla(page);
-  await esperar(async () => (await estado(sw)).bytes > 0, { que: 'el primer trozo' }); // si no, no hay vídeo que ver
+  await esperar(async () => (await estado(sw)).bytes > 0, { que: 'el primer trozo' }); // con una parada casi inmediata no hay vídeo (ver «parada inmediata» en grabacion.test.cjs); aquí se prueba el botón, no eso
   const b = await p.centro(p.buscar(boton('Detener grabación')));
   await page.mouse.click(b.x, b.y);
   await esperarFase(sw, 'inactivo');

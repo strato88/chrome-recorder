@@ -68,6 +68,12 @@ function siguiente(estado, evento, fase, cambios) {
   }
   if (evento === 'cuenta_fin') nuevo.inicioMs = Date.now();
   if (evento === 'error') nuevo.error = { codigo: String(cambios.codigo), detalle: cambios.detalle ?? null };
+  // Una grabación que llegó a grabar y acaba sin un solo trozo (parada casi al instante):
+  // no hay vista previa, así que se dice. Cancelar o no llegar a grabar no es un error.
+  if (evento === 'terminado' && cambios.hayVideo === false && !estado.error
+    && ['grabando', 'en_pausa', 'cerrando'].includes(estado.fase)) {
+    nuevo.error = { codigo: 'sin_video', detalle: null };
+  }
   return nuevo;
 }
 

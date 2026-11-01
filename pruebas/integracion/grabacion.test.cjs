@@ -321,6 +321,61 @@ test('si el recorder no arranca, se vuelve a reposo sin restos', T, async () => 
   assert.deepEqual(await sw.evaluate(() => self.pestanasAbiertas), [], 'no se abre la vista');
 });
 
+// Ronda de corrección 1 (Tarea 7) -------------------------------------------
+
+// Parar casi al instante de empezar nunca es silencioso: o hay vista con un vídeo
+// válido o el estado acaba en `inactivo` con el error `sin_video` y sin sesión.
+async function paradaInmediata(ext, espera) {
+  const { sw, extId } = ext;
+  const inicial = await iniciar(sw);
+  await esperarFase(sw, 'grabando');
+  await dormir(espera);
+  await aplicar(sw, 'detener');
+  const fin = await esperarFase(sw, 'inactivo', 30000);
+  await esperar(async () => (await offscreens(sw)) === 0, { que: 'sin offscreen' });
+  const abierta = (await sw.evaluate(() => self.pestanasAbiertas))
+    .some((u) => u.startsWith(`chrome-extension://${extId}/vista/vista.html?sesion=${inicial.sesionId}`));
+  if (abierta) {
+    assert.equal(fin.error, null);
+    const sesion = await sw.evaluate((id) => self.grabador.almacen.leerSesion(id), inicial.sesionId);
+    assert.equal(sesion.estado, 'terminada');
+    const r = await sondear(sw, inicial.sesionId);
+    assert.equal(r.video.codec_name, 'h264');
+    return 'vista';
+  }
+  assert.equal(fin.error?.codigo, 'sin_video', `sin vista y sin error: ${JSON.stringify(fin.error)}`);
+  assert.deepEqual(await sesiones(sw), []);
+  return 'sin_video';
+}
+
+// Chrome no entrega ningún trozo si se para antes de que el codificador saque el primer
+// fotograma (sondeado: 0 ms casi nunca, 50 ms a veces, ≥100 ms siempre; requestData() antes
+// de stop() no cambia nada). Por eso ese caso se declara con `sin_video`, no se esconde.
+test('parada inmediata', T, async () => {
+  for (const espera of [0, 300]) {
+    await limpiar(ext);
+    const resultado = await paradaInmediata(ext, espera);
+    console.log(`# parada inmediata (${espera} ms): ${resultado}`);
+  }
+});
+
+test('terminado sin vídeo: error solo si ya se estaba grabando', T, async () => {
+  const { sw } = ext;
+  let e = await iniciar(sw);
+  await esperarFase(sw, 'grabando');
+  e = await aplicar(sw, 'terminado', { sesionId: e.sesionId, hayVideo: false });
+  assert.equal(e.fase, 'inactivo');
+  assert.equal(e.error?.codigo, 'sin_video');
+  assert.equal(await sw.evaluate(() => self.pestanasAbiertas.length), 0, 'sin vista previa');
+  // Cancelar o dejar de compartir en la cuenta atrás no es un error.
+  await limpiar(ext);
+  e = await iniciar(sw);
+  await esperarFase(sw, 'cuenta_atras');
+  e = await aplicar(sw, 'terminado', { sesionId: e.sesionId, hayVideo: false });
+  assert.equal(e.fase, 'inactivo');
+  assert.equal(e.error, null);
+});
+
 // ---------------------------------------------------------------------------
 // Pestaña con audio (otro Chrome: el selector se elige por título)
 // ---------------------------------------------------------------------------
