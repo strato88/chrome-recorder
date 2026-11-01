@@ -6,6 +6,7 @@ import { FACTORES, formatoTiempo } from '../comun/calidad.js';
 import { enviar, OFFSCREEN, AL_ORQUESTADOR, AVISOS } from '../comun/mensajes.js';
 import * as almacen from '../comun/almacen.js';
 import * as superposicion from './superposicion.js';
+import { iconosDeFase } from './indicadores.js';
 
 const CLAVE = 'estado';
 const URL_GRABADORA = 'offscreen/grabadora.html';
@@ -125,6 +126,7 @@ const aviso = ({ sesionId, codigo, ancho, alto }) => anotar(sesionId,
 // ---------------------------------------------------------------------------
 
 async function efectos(estado, evento, cambios) {
+  await actualizarIcono(estado);
   await actualizarIndicadores(estado);
   switch (estado.fase) {
     case 'eligiendo': await abrirGrabadora(estado); break;
@@ -240,6 +242,16 @@ export async function actualizarInsignia(estado) {
   const color = COLOR[estado.fase];
   if (color) await chrome.action.setBadgeBackgroundColor({ color });
   await chrome.action.setBadgeText({ text: texto });
+}
+
+// El icono solo cambia con la fase, así que se pone aquí (en cada transición) y no
+// en cada avance del tiempo. Un fallo al pintarlo nunca afecta a la grabación.
+async function actualizarIcono(estado) {
+  try {
+    await chrome.action.setIcon({ path: iconosDeFase(estado.fase) });
+  } catch (e) {
+    console.warn('Grabador: no se pudo cambiar el icono', e);
+  }
 }
 
 // Insignia del icono y superposición de la pestaña: los dos siguen al estado.

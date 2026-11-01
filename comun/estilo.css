@@ -1,0 +1,146 @@
+/* Identidad visual de Dipesa para el popup y la vista previa.
+   Letras empaquetadas (Outfit y JetBrains Mono), colores como variables y las
+   piezas base: .btn, .btn-grabar, .campo, .aviso, .mono. Sin recursos remotos.
+   La superposición de la página NO usa este fichero (letras del sistema). */
+
+@font-face {
+  font-family: "Outfit";
+  src: url("../fuentes/Outfit-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../fuentes/JetBrainsMono-Variable.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light dark;
+
+  --azul: #2E86AB;
+  --azul-tinte: #E6F2F7;
+  --tinta: #1C2634;
+  --secundario: #4A5866;
+  --linea: #DCE2E8;
+  --fondo: #FFFFFF;
+  --hundido: #FBFCFD;
+  --rojo: #C8302B;
+  --rojo-tinte: #FBEAE9;
+  --ambar: #8A5A00;
+
+  /* Apoyos con contraste AA: el azul de marca solo da 4,1:1 sobre blanco, así que
+     el texto azul usa --azul-texto; el borde de los campos pide 3:1. */
+  --azul-texto: #1F6785;
+  --ambar-tinte: #FFF4DB;
+  --rojo-solido: #C8302B;
+  --borde-campo: #8794A1;
+
+  --f-texto: "Outfit", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --azul: #5AAFD1;
+    --azul-tinte: #17313F;
+    --tinta: #E8EEF3;
+    --secundario: #A8B5C1;
+    --linea: #2C3A48;
+    --fondo: #121A23;
+    --hundido: #0E151C;
+    --rojo: #F0706B;
+    --rojo-tinte: #3A1B1A;
+    --ambar: #E3AE45;
+
+    --azul-texto: #8FCBE6;
+    --ambar-tinte: #33270D;
+    --rojo-solido: #C8302B;
+    --borde-campo: #6F7E8D;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--tinta);
+  font-family: var(--f-texto);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Datos tabulares: tiempos, tamaños, resoluciones. */
+.mono {
+  font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Botón: tinte suave y texto del color; nada de relleno saturado. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--azul-tinte);
+  color: var(--azul-texto);
+  font: 500 14px/1.2 var(--f-texto);
+  cursor: pointer;
+  transition: background-color .12s, border-color .12s;
+}
+.btn:hover:not(:disabled) { border-color: var(--azul); }
+.btn:active:not(:disabled) { background: var(--linea); }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Único botón con relleno: el de grabar. */
+.btn-grabar {
+  background: var(--rojo-solido);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+.btn-grabar:hover:not(:disabled) { border-color: var(--tinta); }
+.btn-grabar:active:not(:disabled) { background: #A82823; }
+
+:is(.btn, .btn-grabar, .campo):focus-visible {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
+}
+
+/* Campo de formulario (select, input). */
+.campo {
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid var(--borde-campo);
+  border-radius: 8px;
+  background: var(--hundido);
+  color: var(--tinta);
+  font: 400 14px/1.2 var(--f-texto);
+}
+.campo:hover:not(:disabled) { border-color: var(--azul); }
+.campo:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Aviso: tinte ámbar por defecto; .error en rojo; .info en azul. */
+.aviso {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--ambar-tinte);
+  color: var(--ambar);
+  font-size: 13px;
+}
+.aviso.error { background: var(--rojo-tinte); color: var(--rojo); }
+.aviso.info { background: var(--azul-tinte); color: var(--azul-texto); }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+}

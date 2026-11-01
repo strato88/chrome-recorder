@@ -5,6 +5,12 @@
   "version": "0.1.0",
   "default_locale": "es",
   "minimum_chrome_version": "126",
+  "icons": {
+    "16": "iconos/reposo-16.png",
+    "32": "iconos/reposo-32.png",
+    "48": "iconos/reposo-48.png",
+    "128": "iconos/reposo-128.png"
+  },
   "permissions": ["activeTab", "offscreen", "scripting", "storage", "unlimitedStorage"],
   "background": {
     "service_worker": "background/service-worker.js",
@@ -12,7 +18,13 @@
   },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "__MSG_nombre__"
+    "default_title": "__MSG_nombre__",
+    "default_icon": {
+      "16": "iconos/reposo-16.png",
+      "32": "iconos/reposo-32.png",
+      "48": "iconos/reposo-48.png",
+      "128": "iconos/reposo-128.png"
+    }
   },
   "commands": {
     "alternar-grabacion": {
