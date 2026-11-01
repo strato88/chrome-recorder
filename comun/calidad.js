@@ -46,6 +46,7 @@ export function formatoTiempo(ms) {
 // Unidades decimales (1e6 / 1e9), no 1024. Coma decimal.
 export function formatoPeso(bytes) {
   const mb = Math.round(bytes / 1e6);
+  if (mb === 0 && bytes > 0) return '<1 MB'; // algo hay: «0 MB» parecería vacío
   if (mb < 1000) return `${mb} MB`;
   return `${(bytes / 1e9).toFixed(1).replace('.', ',')} GB`;
 }

@@ -75,4 +75,7 @@ test('formatoPeso', () => {
   assert.equal(formatoPeso(812e6), '812 MB');
   assert.equal(formatoPeso(1.4e9), '1,4 GB');
   assert.equal(formatoPeso(999.6e6), '1,0 GB');
+  assert.equal(formatoPeso(0), '0 MB');
+  assert.equal(formatoPeso(120e3), '<1 MB');
+  assert.equal(formatoPeso(0.6e6), '1 MB');
 });

@@ -147,11 +147,6 @@ before(async () => {
   servidor = await servirRepo();
   url = `${servidor.url}/pruebas/integracion/pagina-vacia.html`;
   ext = await lanzarExtension({ args: ['--auto-select-desktop-capture-source=Entire screen'], permisosHost: true });
-  await ext.sw.evaluate(() => {
-    self.pestanasAbiertas = [];
-    const crear = chrome.tabs.create.bind(chrome.tabs);
-    chrome.tabs.create = (opciones) => { self.pestanasAbiertas.push(opciones.url); return crear(opciones); };
-  });
 });
 
 after(async () => {
@@ -168,7 +163,6 @@ beforeEach(async () => {
   await esperarFase(sw, 'inactivo', 30000);
   await sw.evaluate(async () => {
     for (const s of await self.grabador.almacen.listarSesiones()) await self.grabador.almacen.borrarSesion(s.id);
-    self.pestanasAbiertas.length = 0;
   });
   for (const p of ctx.pages().slice(1)) await p.close();
 });
@@ -217,7 +211,7 @@ test('cuenta y pastilla', T, async () => {
 });
 
 test('detener desde la pastilla', T, async () => {
-  const { sw, extId } = ext;
+  const { sw, ctx } = ext;
   const { page, tabId } = await abrirPagina(ext, url);
   const inicial = await iniciar(sw, tabId);
   await esperarFase(sw, 'grabando');
@@ -226,8 +220,7 @@ test('detener desde la pastilla', T, async () => {
   const b = await p.centro(p.buscar(boton('Detener grabación')));
   await page.mouse.click(b.x, b.y);
   await esperarFase(sw, 'inactivo');
-  const vista = `chrome-extension://${extId}/vista/vista.html?sesion=${inicial.sesionId}`;
-  await esperar(async () => (await sw.evaluate(() => self.pestanasAbiertas)).some((u) => u.startsWith(vista)),
+  await esperar(() => ctx.pages().some((x) => x.url().includes(`/vista/vista.html?sesion=${inicial.sesionId}`)),
     { timeout: 30000, que: 'la pestaña de vista' });
   // La pastilla se retira sola con la fase inactiva.
   await esperar(async () => (await cuantosHost(page)) === 0, { timeout: 8000, que: 'que se retire la superposición' });

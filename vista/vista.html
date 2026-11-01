@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vista previa · Grabador MP4</title>
+  <link rel="icon" href="../iconos/reposo-32.png">
+  <link rel="stylesheet" href="../comun/estilo.css">
+  <link rel="stylesheet" href="vista.css">
+  <script type="module" src="vista.js"></script>
+</head>
+<body>
+  <main id="app">
+    <header class="cabecera">
+      <img src="../iconos/reposo-32.png" alt="" width="24" height="24">
+      <span class="marca" data-i18n="nombre"></span>
+      <h1 data-i18n="vistaTitulo"></h1>
+    </header>
+
+    <ul id="avisos" class="avisos"></ul>
+
+    <video id="video" controls playsinline preload="metadata" hidden></video>
+
+    <section id="ficha" class="ficha" hidden>
+      <dl class="datos">
+        <div><dt data-i18n="vistaResolucion"></dt><dd id="resolucion" class="mono">…</dd></div>
+        <div><dt data-i18n="vistaDuracion"></dt><dd id="duracion" class="mono">…</dd></div>
+        <div><dt data-i18n="vistaPeso"></dt><dd id="peso" class="mono">…</dd></div>
+        <div class="ancho"><dt data-i18n="vistaNombre"></dt><dd id="nombre" class="mono"></dd></div>
+      </dl>
+
+      <div id="acciones" class="acciones">
+        <button id="descartar" type="button" class="btn btn-sobrio" data-i18n="vistaDescartar"></button>
+        <button id="guardar" type="button" class="btn btn-principal" data-i18n="vistaGuardar"></button>
+      </div>
+
+      <!-- Confirmación de Descartar, dentro de la página. -->
+      <div id="confirmar" class="confirmar" role="group" aria-labelledby="confirmar-texto" hidden>
+        <p id="confirmar-texto" data-i18n="vistaConfirmar"></p>
+        <div class="acciones">
+          <button id="volver" type="button" class="btn btn-sobrio" data-i18n="vistaVolver"></button>
+          <button id="descartar-siempre" type="button" class="btn btn-peligro" data-i18n="vistaDescartarSiempre"></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Resultado de Guardar o Descartar, errores y «ya no existe». -->
+    <p id="resultado" class="aviso" role="status" tabindex="-1" hidden></p>
+  </main>
+</body>
+</html>

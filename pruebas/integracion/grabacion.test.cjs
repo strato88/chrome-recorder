@@ -43,22 +43,20 @@ const esperarFase = (sw, fase, timeout = 20000) => esperar(
   { timeout, que: `la fase ${fase}` },
 );
 
-// vista.html aún no existe (Tarea 10): la pestaña acaba en una página de error y
-// su URL ya no se ve. Se espía chrome.tabs.create en el service worker para saber
-// qué se abrió (la pestaña se sigue creando de verdad).
-const espiarPestanas = (sw) => sw.evaluate(() => {
-  if (self.pestanasAbiertas) return;
-  self.pestanasAbiertas = [];
-  const crear = chrome.tabs.create.bind(chrome.tabs);
-  chrome.tabs.create = (opciones) => { self.pestanasAbiertas.push(opciones.url); return crear(opciones); };
-});
+// Páginas de vista previa abiertas (de una sesión o de cualquiera).
+const vistas = (ctx, sesionId = '') => ctx.pages().filter((p) => p.url().includes(`/vista/vista.html?sesion=${sesionId}`));
 
-async function esperarVista(sw, extId, sesionId, timeout = 30000) {
-  const url = `chrome-extension://${extId}/vista/vista.html?sesion=${sesionId}`;
-  return esperar(
-    async () => (await sw.evaluate(() => self.pestanasAbiertas)).some((u) => u.startsWith(url)),
-    { timeout, que: 'la pestaña de vista' },
-  );
+// Espera a que el service worker abra la vista previa de la sesión y a que cargue.
+async function esperarVista(ctx, sesionId, timeout = 30000) {
+  const pagina = await esperar(() => vistas(ctx, sesionId)[0], { timeout, que: 'la pestaña de vista' });
+  await pagina.waitForSelector('#app[data-listo]');
+  return pagina;
+}
+
+// Ninguna vista previa abierta (con margen para una pestaña que aún se estuviera creando).
+async function sinVistas(ctx) {
+  await dormir(1000);
+  assert.deepEqual(vistas(ctx).map((p) => p.url()), [], 'no se abre la vista');
 }
 
 // Lee los trozos de la sesión a través del service worker y los escribe a un MP4 temporal.
@@ -93,14 +91,12 @@ async function sondear(sw, sesionId) {
 // Deja la extensión en reposo y sin restos entre pruebas.
 async function limpiar(ext) {
   const { sw, ctx } = ext;
-  await espiarPestanas(sw);
   const e = await estado(sw);
   if (e.fase === 'grabando' || e.fase === 'en_pausa') await aplicar(sw, 'detener');
   else if (e.fase === 'eligiendo' || e.fase === 'cuenta_atras') await aplicar(sw, 'cancelar');
   await esperarFase(sw, 'inactivo', 30000);
   await sw.evaluate(async () => {
     for (const s of await self.grabador.almacen.listarSesiones()) await self.grabador.almacen.borrarSesion(s.id);
-    self.pestanasAbiertas.length = 0;
     await chrome.storage.local.remove('limitesPrueba');
     await chrome.storage.local.set({ modoPrueba: true });
   });
@@ -122,13 +118,13 @@ after(async () => { await ext?.cerrar(); });
 beforeEach(async () => { if (ext) await limpiar(ext); });
 
 test('graba pantalla', T, async () => {
-  const { sw, ctx, extId } = ext;
+  const { sw, ctx } = ext;
   const inicial = await iniciar(sw);
   assert.equal(inicial.fase, 'eligiendo');
   await esperarFase(sw, 'grabando');
   await dormir(5000);
   await aplicar(sw, 'detener');
-  await esperarVista(sw, extId, inicial.sesionId);
+  await esperarVista(ctx, inicial.sesionId);
   const fin = await esperarFase(sw, 'inactivo');
   assert.equal(fin.error, null);
   const sesion = await sw.evaluate((id) => self.grabador.almacen.leerSesion(id), inicial.sesionId);
@@ -190,7 +186,7 @@ test('linux sin modo de prueba', T, async () => {
 });
 
 test('pausa', T, async () => {
-  const { sw, ctx, extId } = ext;
+  const { sw, ctx } = ext;
   const inicial = await iniciar(sw);
   await esperarFase(sw, 'grabando');
   await dormir(2000);
@@ -204,7 +200,7 @@ test('pausa', T, async () => {
   await aplicar(sw, 'reanudar');
   await dormir(2000);
   await aplicar(sw, 'detener');
-  await esperarVista(sw, extId, inicial.sesionId);
+  await esperarVista(ctx, inicial.sesionId);
   await esperarFase(sw, 'inactivo');
   const r = await sondear(sw, inicial.sesionId);
   assert.equal(r.video.codec_name, 'h264');
@@ -224,12 +220,12 @@ test('cancelar en la cuenta atrás', T, async () => {
 });
 
 test('límites', T, async () => {
-  const { sw, ctx, extId } = ext;
+  const { sw, ctx } = ext;
   await sw.evaluate(() => chrome.storage.local.set({ limitesPrueba: { avisoMs: 2000, maxMs: 4000 } }));
   const inicial = await iniciar(sw);
   await esperarFase(sw, 'grabando');
   await esperar(async () => (await estado(sw)).avisos.includes('quedan_5_min'), { que: 'el aviso quedan_5_min' });
-  await esperarVista(sw, extId, inicial.sesionId);
+  await esperarVista(ctx, inicial.sesionId);
   const fin = await esperarFase(sw, 'inactivo');
   assert.ok(fin.avisos.includes('quedan_5_min'));
   const r = await sondear(sw, inicial.sesionId);
@@ -238,7 +234,7 @@ test('límites', T, async () => {
 });
 
 test('vigilante', T, async () => {
-  const { sw, ctx, extId } = ext;
+  const { sw, ctx } = ext;
   const inicial = await iniciar(sw);
   await esperarFase(sw, 'cuenta_atras');
   await alOffscreen(sw, 'probar_vigilante');
@@ -247,7 +243,7 @@ test('vigilante', T, async () => {
   await esperar(async () => (await estado(sw)).bytes > 0, { timeout: 15000, que: 'el primer trozo tras reintentar' });
   await dormir(1000);
   await aplicar(sw, 'detener');
-  await esperarVista(sw, extId, inicial.sesionId);
+  await esperarVista(ctx, inicial.sesionId);
   const fin = await esperarFase(sw, 'inactivo');
   assert.equal(fin.error, null);
   const r = await sondear(sw, inicial.sesionId);
@@ -286,7 +282,7 @@ test('cancelar en la cuenta atrás no se bloquea', T, async () => {
 });
 
 test('un error de escritura al detener conserva lo grabado', T, async () => {
-  const { sw, extId } = ext;
+  const { sw, ctx } = ext;
   const inicial = await iniciar(sw);
   await esperarFase(sw, 'grabando');
   await esperar(async () => (await estado(sw)).bytes > 0, { que: 'el primer trozo' });
@@ -294,7 +290,7 @@ test('un error de escritura al detener conserva lo grabado', T, async () => {
   const antes = (await estado(sw)).bytes;
   await alOffscreen(sw, 'probar_sin_espacio'); // el siguiente anadirTrozo lanza QuotaExceededError
   await aplicar(sw, 'detener'); // puede llegar tarde si un trozo periódico ya ha fallado
-  await esperarVista(sw, extId, inicial.sesionId);
+  await esperarVista(ctx, inicial.sesionId);
   const fin = await esperarFase(sw, 'inactivo');
   assert.equal(fin.error?.codigo, 'sin_espacio');
   const sesion = await sw.evaluate((id) => self.grabador.almacen.leerSesion(id), inicial.sesionId);
@@ -318,7 +314,7 @@ test('si el recorder no arranca, se vuelve a reposo sin restos', T, async () => 
   assert.equal(fin.error?.codigo, 'grabadora');
   await esperar(async () => (await offscreens(sw)) === 0, { que: 'sin offscreen' });
   assert.deepEqual(await sesiones(sw), []);
-  assert.deepEqual(await sw.evaluate(() => self.pestanasAbiertas), [], 'no se abre la vista');
+  await sinVistas(ext.ctx);
 });
 
 // Ronda de corrección 1 (Tarea 7) -------------------------------------------
@@ -326,25 +322,24 @@ test('si el recorder no arranca, se vuelve a reposo sin restos', T, async () => 
 // Parar casi al instante de empezar nunca es silencioso: o hay vista con un vídeo
 // válido o el estado acaba en `inactivo` con el error `sin_video` y sin sesión.
 async function paradaInmediata(ext, espera) {
-  const { sw, extId } = ext;
+  const { sw, ctx } = ext;
   const inicial = await iniciar(sw);
   await esperarFase(sw, 'grabando');
   await dormir(espera);
   await aplicar(sw, 'detener');
   const fin = await esperarFase(sw, 'inactivo', 30000);
   await esperar(async () => (await offscreens(sw)) === 0, { que: 'sin offscreen' });
-  const abierta = (await sw.evaluate(() => self.pestanasAbiertas))
-    .some((u) => u.startsWith(`chrome-extension://${extId}/vista/vista.html?sesion=${inicial.sesionId}`));
-  if (abierta) {
+  if (fin.error?.codigo !== 'sin_video') {
     assert.equal(fin.error, null);
+    await esperarVista(ctx, inicial.sesionId);
     const sesion = await sw.evaluate((id) => self.grabador.almacen.leerSesion(id), inicial.sesionId);
     assert.equal(sesion.estado, 'terminada');
     const r = await sondear(sw, inicial.sesionId);
     assert.equal(r.video.codec_name, 'h264');
     return 'vista';
   }
-  assert.equal(fin.error?.codigo, 'sin_video', `sin vista y sin error: ${JSON.stringify(fin.error)}`);
   assert.deepEqual(await sesiones(sw), []);
+  await sinVistas(ctx);
   return 'sin_video';
 }
 
@@ -366,7 +361,7 @@ test('terminado sin vídeo: error solo si ya se estaba grabando', T, async () =>
   e = await aplicar(sw, 'terminado', { sesionId: e.sesionId, hayVideo: false });
   assert.equal(e.fase, 'inactivo');
   assert.equal(e.error?.codigo, 'sin_video');
-  assert.equal(await sw.evaluate(() => self.pestanasAbiertas.length), 0, 'sin vista previa');
+  await sinVistas(ext.ctx);
   // Cancelar o dejar de compartir en la cuenta atrás no es un error.
   await limpiar(ext);
   e = await iniciar(sw);
@@ -385,8 +380,7 @@ test('pestaña con audio', T, async () => {
     args: ['--auto-select-tab-capture-source-by-title=Prueba', '--autoplay-policy=no-user-gesture-required'],
   });
   try {
-    const { sw, ctx, extId } = pestana;
-    await espiarPestanas(sw);
+    const { sw, ctx } = pestana;
     const pagina = await ctx.newPage();
     await pagina.setContent(`<title>Prueba</title><h1>Prueba</h1><script>
       const c = new AudioContext(); const o = c.createOscillator();
@@ -399,7 +393,7 @@ test('pestaña con audio', T, async () => {
     assert.ok(!grabando.avisos.includes('sin_audio'));
     await dormir(3000);
     await aplicar(sw, 'detener');
-    await esperarVista(sw, extId, inicial.sesionId);
+    await esperarVista(ctx, inicial.sesionId);
     await esperarFase(sw, 'inactivo');
     const r = await sondear(sw, inicial.sesionId);
     assert.equal(r.video.codec_name, 'h264');

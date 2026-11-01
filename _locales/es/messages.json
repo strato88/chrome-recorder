@@ -161,5 +161,104 @@
   },
   "avisoQuedan5Min": {
     "message": "Quedan 5 minutos: la grabación se parará a la hora"
+  },
+  "vistaTituloPagina": {
+    "message": "Vista previa · Grabador MP4"
+  },
+  "vistaTitulo": {
+    "message": "Vista previa"
+  },
+  "vistaResolucion": {
+    "message": "Resolución"
+  },
+  "vistaDuracion": {
+    "message": "Duración"
+  },
+  "vistaPeso": {
+    "message": "Peso"
+  },
+  "vistaNombre": {
+    "message": "Nombre al guardar"
+  },
+  "vistaGuardar": {
+    "message": "Guardar"
+  },
+  "vistaDescartar": {
+    "message": "Descartar"
+  },
+  "vistaConfirmar": {
+    "message": "¿Descartar esta grabación? Se borrará y no se podrá recuperar."
+  },
+  "vistaDescartarSiempre": {
+    "message": "Descartar para siempre"
+  },
+  "vistaVolver": {
+    "message": "Volver"
+  },
+  "vistaTipoMp4": {
+    "message": "Vídeo MP4"
+  },
+  "vistaGuardado": {
+    "message": "Guardado como $NOMBRE$",
+    "placeholders": {
+      "nombre": {
+        "content": "$1"
+      }
+    }
+  },
+  "vistaDescartada": {
+    "message": "Grabación descartada"
+  },
+  "vistaNoExiste": {
+    "message": "Esta grabación ya no existe"
+  },
+  "vistaErrorGuardar": {
+    "message": "No se ha podido guardar: $MOTIVO$",
+    "placeholders": {
+      "motivo": {
+        "content": "$1"
+      }
+    }
+  },
+  "vistaErrorDescartar": {
+    "message": "No se ha podido descartar; vuelve a intentarlo"
+  },
+  "vistaMotivoPermiso": {
+    "message": "Chrome no ha dado permiso para escribir el archivo"
+  },
+  "vistaMotivoEspacio": {
+    "message": "no queda espacio en el disco"
+  },
+  "vistaMotivoEnUso": {
+    "message": "el archivo está en uso o no se puede modificar"
+  },
+  "vistaMotivoLeer": {
+    "message": "no se ha podido leer la grabación"
+  },
+  "vistaMotivoOtro": {
+    "message": "error al escribir el archivo"
+  },
+  "vistaErrorVideo": {
+    "message": "Este vídeo no se puede ver aquí, pero puedes guardarlo igualmente"
+  },
+  "vistaAvisoRecuperada": {
+    "message": "Grabación recuperada: se quedó sin guardar ni descartar"
+  },
+  "vistaAvisoCortada": {
+    "message": "Grabación recuperada: se cortó antes de terminar y puede faltarle el final"
+  },
+  "vistaAvisoReducida": {
+    "message": "Grabada a $NUEVA$, reducida desde $ORIGINAL$ (el MP4 no admite tanta resolución)",
+    "placeholders": {
+      "nueva": {
+        "content": "$1"
+      },
+      "original": {
+        "content": "$2"
+      }
+    }
+  },
+  "vistaAvisoSinAudio": {
+    "message": "Grabación sin sonido: Chrome no dio el audio de esta fuente en tu sistema"
   }
 }

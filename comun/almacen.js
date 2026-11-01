@@ -94,6 +94,12 @@ export async function leerTrozos(sesion) {
   return filas.map((f) => f.blob);
 }
 
+export async function contarTrozos(sesion) {
+  const bd = await abrir();
+  const rango = IDBKeyRange.bound([sesion, 0], [sesion, Infinity]);
+  return pedir(bd.transaction(TROZOS).objectStore(TROZOS).count(rango));
+}
+
 export function borrarSesion(id) {
   return transaccion([SESIONES, TROZOS], 'readwrite', (a) => {
     a[SESIONES].delete(id);

@@ -7,6 +7,7 @@ import { enviar, OFFSCREEN, AL_ORQUESTADOR, AVISOS } from '../comun/mensajes.js'
 import * as almacen from '../comun/almacen.js';
 import * as superposicion from './superposicion.js';
 import { iconosDeFase } from './indicadores.js';
+import { abrirVista, recuperarSesiones } from './recuperacion.js';
 
 const CLAVE = 'estado';
 const URL_GRABADORA = 'offscreen/grabadora.html';
@@ -82,6 +83,7 @@ function siguiente(estado, evento, fase, cambios) {
 // Si `cambios.sesionId` viene y no es la sesión en curso, es un mensaje viejo.
 export function aplicar(evento, cambios = {}) {
   return enCola(async () => {
+    if (evento === 'iniciar') await recuperarSiColgada(); // no empezar encima de una colgada
     const estado = await leerEstado();
     if (cambios.sesionId !== undefined && cambios.sesionId !== estado.sesionId) {
       console.warn(`Grabador: «${evento}» de otra sesión (${cambios.sesionId}); se ignora`);
@@ -222,9 +224,39 @@ async function cerrarGrabadora(estado, evento, cambios) {
   }
   await cerrarDocumento();
   if (evento === 'terminado' && cambios.hayVideo === true) {
-    const url = chrome.runtime.getURL(`vista/vista.html?sesion=${encodeURIComponent(estado.sesionId)}`);
-    await chrome.tabs.create({ url }).catch((e) => console.error('Grabador: no se pudo abrir la vista', e));
+    await abrirVista(estado.sesionId).catch((e) => console.error('Grabador: no se pudo abrir la vista', e));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Recuperación
+// ---------------------------------------------------------------------------
+
+// Una fase activa sin grabadora viva no acabará nunca (Chrome cerró el documento y
+// nadie mandará `terminado`): vuelve a reposo. Dentro de la cola. Devuelve false si
+// hay una grabación en marcha.
+async function sanearFase() {
+  const estado = await leerEstado();
+  if (estado.fase === 'inactivo') return true;
+  if (await hayGrabadora()) return false;
+  console.warn(`Grabador: fase «${estado.fase}» sin grabadora; se vuelve a reposo`);
+  const nuevo = { ...estado, fase: 'inactivo' };
+  await guardarEstado(nuevo);
+  await actualizarIcono(nuevo);
+  await actualizarIndicadores(nuevo);
+  return true;
+}
+
+// Dentro de la cola: solo si la fase se había quedado colgada.
+async function recuperarSiColgada() {
+  if ((await leerEstado()).fase === 'inactivo') return;
+  if (await sanearFase()) await recuperarSesiones();
+}
+
+// Al abrir Chrome o instalar: todo lo que quedó sin guardar ni descartar.
+// Devuelve los ids de las vistas abiertas.
+export function recuperarHuerfanas() {
+  return enCola(async () => ((await sanearFase()) ? recuperarSesiones() : []));
 }
 
 function textoInsignia(estado) {
@@ -330,5 +362,11 @@ chrome.commands.onCommand.addListener((comando, pestana) => {
   atajo(comando, pestana).catch((e) => console.error('Grabador: atajo', e));
 });
 
-// Para el arnés de pruebas (y la recuperación de la Tarea 10).
-self.grabador = { aplicar, leerEstado, almacen };
+const alFallarRecuperacion = (e) => console.error('Grabador: recuperación', e);
+chrome.runtime.onStartup.addListener(() => { recuperarHuerfanas().catch(alFallarRecuperacion); });
+chrome.runtime.onInstalled.addListener(() => { recuperarHuerfanas().catch(alFallarRecuperacion); });
+// Cada vez que el service worker despierta: una fase colgada no espera a reiniciar Chrome.
+enCola(recuperarSiColgada).catch(alFallarRecuperacion);
+
+// Para el arnés de pruebas.
+self.grabador = { aplicar, leerEstado, almacen, recuperarHuerfanas };

@@ -1,0 +1,146 @@
+/* Maquetación propia de la vista previa: una columna centrada (máx. 960 px) con el
+   vídeo y una ficha compacta debajo. Colores, botones y avisos de comun/estilo.css. */
+
+[hidden] { display: none !important; }
+
+#app {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cabecera {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cabecera img { flex: none; }
+.marca {
+  font-weight: 600;
+  color: var(--tinta);
+}
+.cabecera h1 {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 1px solid var(--linea);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--secundario);
+}
+
+.avisos {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.avisos:empty { display: none; }
+
+/* El vídeo manda: todo el ancho, dejando sitio para la ficha en ventanas bajas. */
+#video {
+  display: block;
+  width: 100%;
+  max-height: max(220px, min(62vh, calc(100vh - 300px)));
+  border-radius: 12px;
+  background: #000000;
+}
+
+.ficha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+  padding: 16px 18px;
+  border: 1px solid var(--linea);
+  border-radius: 12px;
+  background: var(--hundido);
+}
+
+.datos {
+  margin: 0;
+  flex: 1 1 420px;
+  display: grid;
+  grid-template-columns: repeat(3, max-content) minmax(0, 1fr);
+  gap: 4px 28px;
+}
+.datos div { min-width: 0; }
+.datos dt {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--secundario);
+}
+.datos dd {
+  margin: 0;
+  font-size: 15px;
+  color: var(--tinta);
+}
+/* El nombre puede ser largo: se parte por donde haga falta. */
+#nombre {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.acciones {
+  display: flex;
+  gap: 8px;
+  flex: none;
+}
+
+/* Guardar: el azul de marca con algo más de peso. Descartar: sobrio, sin tinte. */
+.btn-principal {
+  min-width: 120px;
+  font-weight: 600;
+}
+.btn-sobrio {
+  background: transparent;
+  border-color: var(--linea);
+  color: var(--secundario);
+}
+.btn-sobrio:hover:not(:disabled) { border-color: var(--borde-campo); }
+.btn-peligro {
+  background: var(--rojo-tinte);
+  color: var(--rojo);
+  font-weight: 600;
+}
+.btn-peligro:hover:not(:disabled) { border-color: var(--rojo); }
+
+.confirmar {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--rojo-tinte);
+}
+.confirmar p {
+  margin: 0;
+  color: var(--tinta);
+  font-weight: 500;
+}
+.confirmar .btn-sobrio { background: var(--fondo); }
+.confirmar .btn-peligro { background: var(--fondo); border-color: var(--rojo); }
+
+#resultado { font-size: 14px; }
+#resultado:focus { outline: none; }
+
+/* Ventanas estrechas: los datos en dos columnas y los botones a todo lo ancho. */
+@media (max-width: 640px) {
+  #app { padding: 16px 16px 32px; }
+  .datos {
+    flex-basis: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 16px;
+  }
+  .datos .ancho { grid-column: 1 / -1; }
+  .acciones { flex: 1 1 100%; }
+  .acciones .btn { flex: 1 1 0; }
+}
