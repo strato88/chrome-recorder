@@ -95,7 +95,7 @@ inactivo → eligiendo → cuenta_atras → grabando ⇄ en_pausa → cerrando �
 ```
 
 - Estado en `chrome.storage.session` (sobrevive a que Chrome duerma el service worker).
-- Una sola grabación a la vez. «Grabar» o el atajo durante una grabación equivale a Detener.
+- Una sola grabación a la vez. «Grabar» o el atajo durante una grabación equivale a Detener. Con el selector abierto el atajo no hace nada (una pulsación doble es una sola grabación); en la cuenta atrás, cancela.
 - Las transiciones están en una tabla; una no prevista se registra y se ignora.
 
 ### 3.3 Flujo de una grabación
@@ -138,7 +138,7 @@ Bitrate de vídeo = ancho × alto × fps × factor (0,07 Normal · 0,10 Alta · 
 
 ### 4.5 Recuperación
 
-Al despertar el service worker, una sesión en IndexedDB que no está grabando ni en vista previa se abre en la vista previa como «Grabación recuperada». Comprobado en la Fase 1: un MP4 sin su último trozo es válido.
+Al despertar el service worker, una sesión en IndexedDB que no está grabando ni en vista previa se abre en la vista previa como «Grabación recuperada». Comprobado en la Fase 1: un MP4 sin su último trozo es válido. Si se cierra la vista previa sin guardar, el popup en reposo lo dice y la vuelve a abrir con «Abrir».
 
 ### 4.6 Nombre del archivo
 
@@ -190,6 +190,8 @@ Sin permisos de host, sin `tabCapture`, sin `desktopCapture`, sin `downloads`. *
 | Situación | Qué ve el usuario | Qué hace la extensión |
 |---|---|---|
 | Cancela el selector | «Grabación cancelada» | Vuelve a reposo |
+| macOS sin permiso de grabar la pantalla (`NotAllowedError` «… by system») | «Chrome no tiene permiso para grabar la pantalla…» con los pasos de Ajustes del Sistema | Vuelve a reposo |
+| Falla algo antes de empezar a grabar (`NotReadableError`, la grabadora no abre) | «No se ha podido empezar a grabar» | Vuelve a reposo |
 | Linux | «Esta extensión funciona en Windows y macOS» | No graba |
 | Chrome < 126 | No se instala (`minimum_chrome_version`) | — |
 | Ningún códec aceptado | «No se puede grabar en MP4 en este Chrome» | No graba |
@@ -197,8 +199,11 @@ Sin permisos de host, sin `tabCapture`, sin `desktopCapture`, sin `downloads`. *
 | Pidió audio y no llegó | Aviso en popup, superposición y vista previa | Graba sin sonido |
 | Resolución sobre el tope | Aviso en la vista previa con ambas resoluciones | Reduce |
 | Vigilante: no sale nada en 5 s | «No se ha podido grabar a esta resolución; reintentando más pequeño» | §4.1 |
-| Sin espacio | «Te has quedado sin espacio; se ha guardado hasta aquí» | Detiene, vista previa |
-| Error de `MediaRecorder` | «La grabación se ha cortado» | Conserva trozos, vista previa |
+| Sin espacio | «Te has quedado sin espacio; se ha guardado hasta aquí»; la vista previa también lo dice | Detiene, vista previa |
+| Error de `MediaRecorder` | «La grabación se ha cortado»; la vista previa también lo dice | Conserva trozos, vista previa |
+| Llega a los 60 min | Vista previa: «La grabación se paró sola al llegar a una hora» | Detiene |
+| Se cierra la vista previa sin guardar | Popup: «Tienes N grabación(es) sin guardar» con «Abrir» | §4.5 |
+| La misma grabación en dos pestañas | La segunda: «Esta grabación ya está abierta en otra pestaña» | Candado por sesión (Web Locks) |
 | Chrome se cierra grabando | «Grabación recuperada» al volver | §4.5 |
 | Guardar como cancelado | Nada; sigue en la vista previa | Conserva trozos |
 | Selector exige activación del usuario | — | Plan B de §3 **[F3]** |

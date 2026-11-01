@@ -6,7 +6,7 @@ Marca cada casilla con `x` al comprobarla; anota entre paréntesis lo que haya d
 
 ## Antes de empezar
 
-1. Carga la extensión en `chrome://extensions` (Modo de desarrollador → Cargar descomprimida → carpeta del repositorio). Comprueba que no sale ningún aviso de permisos al instalar.
+1. Carga la extensión en `chrome://extensions` como dice el README (ZIP de la rama `claude/busy-keller-uoqzk7` → descomprimir → Modo de desarrollador → Cargar descomprimida → la carpeta que contiene `manifest.json`). Comprueba que no sale ningún aviso de permisos al instalar.
 2. En macOS, da a Chrome el permiso «Grabación de pantalla y audio del sistema» (Ajustes del Sistema → Privacidad y seguridad) y reinicia Chrome.
 3. Ten a mano `ffprobe` (viene con ffmpeg) y VLC. Se usa también QuickTime (macOS) y el reproductor de Windows («Películas y TV» o «Reproductor multimedia»).
 4. Anota el sistema, versión y versión de Chrome (`chrome://version`):
@@ -126,9 +126,53 @@ Cómo comprobarlo: en la vista previa pulsa Guardar. Debe abrirse el diálogo de
 
 Qué hacer si falla: si el diálogo no se abre o da error de permiso, mirar el motivo que muestra la vista previa («No se ha podido guardar: …»). La especificación no tiene plan B (no hay permiso `downloads`); habría que decidirlo con el propietario.
 
+## Lo que solo se puede comprobar en una máquina real
+
+Cosas que las pruebas automáticas no pueden ver (en ellas no hay una persona pulsando el icono, ni un Mac, ni una hora entera de grabación). Anota en cada una lo que veas.
+
+### Pastilla con el permiso real de la pestaña
+
+- [ ] Windows  [ ] macOS — **Desde el popup:** abre una web normal (no `chrome://`), pulsa el icono, Grabar, y elige otra cosa en el selector. Tras la cuenta atrás, la pastilla debe aparecer abajo a la derecha de esa web.
+- [ ] Windows  [ ] macOS — **Desde el atajo:** en una web normal, pulsa `Alt+Mayús+R` (Mac: `Opción ⌥ + Mayús ⇧ + R`). La pastilla también debe aparecer. (En las pruebas automáticas se da el permiso de otra forma; aquí se comprueba el de verdad, que Chrome solo concede al pulsar el icono o el atajo).
+
+### Insignia legible
+
+- [ ] Windows  [ ] macOS — Graba más de 10 minutos y mira el icono: el tiempo `mm:ss` (5 caracteres) debe leerse entero, sin cortarse. Si Chrome lo corta (p. ej. «12:3»), anótalo con una captura.
+
+### Una grabación real de 60 minutos
+
+- [ ] Windows  [ ] macOS — Graba la pantalla una hora entera (calidad Normal, 30 fotogramas). Comprueba:
+  - [ ] A los 55 minutos sale el aviso «Quedan 5 minutos» en el popup y «Quedan 5 min» en la pastilla.
+  - [ ] A los 60 minutos se para sola y la vista previa dice «La grabación se paró sola al llegar a una hora».
+  - [ ] Guardar funciona con un archivo de varios GB. Ojo: mientras guarda, Chrome escribe una copia temporal (`.crswap`) y la renombra al final, así que hace falta en el disco unas **dos veces** lo que pesa la grabación. Anota el peso y el tiempo que tarda en guardar.
+  - [ ] El archivo se abre en QuickTime (macOS) y en el reproductor de Windows, y se puede saltar a mitad y al final (arrastrando la barra) sin que se congele ni se desincronice el sonido. Un MP4 fragmentado largo es donde más fallan.
+
+### Ventana con un tamaño impar
+
+- [ ] Windows  [ ] macOS — Ajusta a mano una ventana para que su ancho o su alto sean impares (p. ej. 1001 × 701; arrastra el borde poco a poco) y grábala. Puede que el codificador del sistema no arranque a la primera: entonces, a los 5 segundos, la extensión reintenta más pequeño y avisa «Reintentando a menor resolución». Anota si pasa, y si al final graba.
+
+### Cancelar con el selector abierto
+
+- [ ] Windows  [ ] macOS — Pulsa Grabar y, con el selector de Chrome abierto, vuelve a abrir el popup y pulsa **Cancelar**. El selector debe cerrarse solo y el popup volver al formulario. Si el selector se queda abierto, anótalo (al elegir algo después no debe empezar ninguna grabación).
+- [ ] Windows  [ ] macOS — Con el selector abierto, pulsa otra vez el atajo de grabar: no debe pasar nada (el selector sigue abierto). Una pulsación doble rápida no debe cancelar.
+
+### La cuenta atrás en el vídeo
+
+- [ ] Windows  [ ] macOS — Graba la pantalla con la pestaña de la cuenta atrás a la vista. En el archivo guardado, mira los primeros fotogramas: anota si se ve el círculo de la cuenta atrás (no debería: la grabación empieza al acabar la cuenta, pero el círculo tarda un instante en quitarse).
+
+### Mac sin permiso de grabar la pantalla
+
+- [ ] macOS — En Ajustes del Sistema → Privacidad y seguridad → Grabación de pantalla y audio del sistema, **desactiva** Chrome (o prueba antes de dárselo por primera vez). Graba una ventana o la pantalla: el popup debe decir «Chrome no tiene permiso para grabar la pantalla…» con esos mismos pasos, y **no** «Grabación cancelada». Repite justo después de activarlo sin reiniciar Chrome (debe salir el mismo mensaje) y después de reiniciarlo (debe grabar). Vuelve a dejar el permiso activado.
+
+### Reabrir una grabación sin guardar
+
+- [ ] Windows  [ ] macOS — Graba unos segundos, y en la vista previa cierra la pestaña sin guardar ni descartar. Abre el popup: debe decir «Tienes 1 grabación sin guardar» con el botón **Abrir**. Púlsalo: se abre la vista previa y se puede guardar.
+- [ ] Windows  [ ] macOS — Con esa vista previa abierta, copia su dirección en otra pestaña: la segunda debe decir «Esta grabación ya está abierta en otra pestaña», sin botones.
+
 ## Comprobaciones extra que conviene hacer de paso
 
-- [ ] Los atajos `Alt+Mayús+R` y `Alt+Mayús+P` no chocan con otro programa y funcionan con Chrome en primer plano.
+- [ ] Los atajos `Alt+Mayús+R` y `Alt+Mayús+P` (Mac: `Opción ⌥ + Mayús ⇧ + R` y `P`) no chocan con otro programa y funcionan con Chrome en primer plano.
+- [ ] Al volver a abrir Chrome sale el aviso «Desactiva las extensiones en modo de desarrollador»: cerrarlo sin pulsar «Desactivar» deja la extensión funcionando.
 - [ ] Parar en el primer instante (menos de 1 segundo) da «La grabación ha sido demasiado corta» y no deja nada a medias.
 - [ ] Cerrar Chrome grabando y volver a abrirlo enseña «Grabación recuperada», y el archivo guardado se reproduce.
 - [ ] En modo claro y modo oscuro del sistema, el popup y la vista previa se leen bien.
