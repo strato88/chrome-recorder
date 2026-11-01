@@ -2,9 +2,72 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Grabador MP4</title>
+  <link rel="stylesheet" href="../comun/estilo.css">
+  <link rel="stylesheet" href="popup.css">
+  <script type="module" src="popup.js"></script>
 </head>
 <body>
-  <!-- Marcador provisional: la Tarea 9 sustituye este fichero por el popup real. -->
+  <main id="app">
+    <!-- Error o aviso de la última grabación, encima de todo. -->
+    <p id="mensaje" class="aviso error" role="status" hidden></p>
+
+    <!-- Parado: configuración y Grabar. -->
+    <section id="parado" hidden>
+      <div class="fila">
+        <label for="fuente" data-i18n="popupFuente"></label>
+        <select id="fuente" class="campo">
+          <option value="browser" data-i18n="popupFuentePestana"></option>
+          <option value="window" data-i18n="popupFuenteVentana"></option>
+          <option value="monitor" data-i18n="popupFuentePantalla"></option>
+        </select>
+      </div>
+      <p id="ayuda-fuente" class="ayuda" data-i18n="popupAyudaFuente"></p>
+      <div class="fila">
+        <label for="audio" data-i18n="popupAudio"></label>
+        <select id="audio" class="campo">
+          <option value="no" data-i18n="popupAudioNo"></option>
+          <option value="si" data-i18n="popupAudioSi"></option>
+        </select>
+      </div>
+      <div class="fila">
+        <label for="calidad" data-i18n="popupCalidad"></label>
+        <select id="calidad" class="campo">
+          <option value="normal" data-i18n="popupCalidadNormal"></option>
+          <option value="alta" data-i18n="popupCalidadAlta"></option>
+          <option value="maxima" data-i18n="popupCalidadMaxima"></option>
+        </select>
+      </div>
+      <div class="fila">
+        <label for="fps" data-i18n="popupFps"></label>
+        <select id="fps" class="campo">
+          <option value="30">30</option>
+          <option value="60">60</option>
+        </select>
+      </div>
+      <button id="grabar" type="button" class="btn btn-grabar" data-i18n="popupGrabar"></button>
+      <p id="estimacion" class="estimacion mono"></p>
+    </section>
+
+    <!-- Grabando / en pausa / guardando. -->
+    <section id="activo" hidden>
+      <p class="estado"><span id="punto" class="punto" aria-hidden="true"></span><span id="estado-texto"></span></p>
+      <p id="tiempo" class="tiempo mono" aria-live="polite"></p>
+      <dl id="datos" class="datos mono"></dl>
+      <ul id="avisos" class="avisos"></ul>
+      <div class="acciones">
+        <button id="pausar" type="button" class="btn"></button>
+        <button id="detener" type="button" class="btn"></button>
+      </div>
+    </section>
+
+    <!-- Eligiendo qué grabar / cuenta atrás. -->
+    <section id="espera" hidden>
+      <p id="texto-espera" class="espera"></p>
+      <p id="numero" class="tiempo mono" aria-live="polite" hidden></p>
+      <button id="cancelar" type="button" class="btn"></button>
+    </section>
+  </main>
 </body>
 </html>
