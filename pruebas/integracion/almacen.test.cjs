@@ -85,3 +85,27 @@ test('espacio() devuelve cifras positivas', async () => {
   assert.ok(e.cuota > 0, 'cuota > 0');
   assert.ok(e.libre <= e.cuota);
 });
+
+test('un error de petición rechaza con el DOMException, no con null', async () => {
+  // `put` nunca falla por clave duplicada; lo cambiamos por `add` para provocar
+  // un ConstraintError de verdad (error de petición que sube a la transacción).
+  const r = await pagina.evaluate(async ({ url }) => {
+    const a = await import(url + '/comun/almacen.js');
+    await a.anadirTrozo('err', 0, new Blob(['a']));
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (valor) { return this.add(valor); };
+    try {
+      await a.anadirTrozo('err', 0, new Blob(['b']));
+      return { rechazo: false };
+    } catch (e) {
+      return { rechazo: true, esNulo: e === null, nombre: e && e.name, mensaje: e && e.message };
+    } finally {
+      IDBObjectStore.prototype.put = original;
+      await a.borrarSesion('err');
+    }
+  }, { url: servidor.url });
+  assert.equal(r.rechazo, true);
+  assert.equal(r.esNulo, false);
+  assert.ok(r.nombre, 'el error tiene name');
+  assert.equal(r.nombre, 'ConstraintError');
+});

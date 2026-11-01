@@ -40,7 +40,8 @@ async function transaccion(nombres, modo, trabajo) {
     const tx = bd.transaction(nombres, modo);
     let resultado;
     tx.oncomplete = () => resolver(resultado);
-    tx.onerror = () => rechazar(tx.error);
+    // Sin `onerror`: cuando salta, `tx.error` aún es null. Al abortarse la
+    // transacción (también por un error de petición) `tx.error` ya trae el motivo.
     tx.onabort = () => rechazar(tx.error || new Error('Transacción abortada'));
     try {
       resultado = trabajo(Object.fromEntries(nombres.map((n) => [n, tx.objectStore(n)])), tx);
