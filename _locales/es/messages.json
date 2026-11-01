@@ -1,0 +1,324 @@
+{
+  "nombre": {
+    "message": "Grabador MP4"
+  },
+  "descripcion": {
+    "message": "Graba una pestaña, una ventana o la pantalla en MP4"
+  },
+  "atajoGrabacion": {
+    "message": "Iniciar o detener la grabación"
+  },
+  "atajoPausa": {
+    "message": "Pausar o reanudar la grabación"
+  },
+  "superCuentaAtras": {
+    "message": "Cuenta atrás de la grabación"
+  },
+  "superControles": {
+    "message": "Controles de la grabación"
+  },
+  "superPausar": {
+    "message": "Pausar grabación"
+  },
+  "superReanudar": {
+    "message": "Reanudar grabación"
+  },
+  "superDetener": {
+    "message": "Detener grabación"
+  },
+  "superOcultar": {
+    "message": "Ocultar controles"
+  },
+  "superAvisos": {
+    "message": "Avisos de la grabación"
+  },
+  "superSinSonido": {
+    "message": "Sin sonido"
+  },
+  "superQuedan5Min": {
+    "message": "Quedan 5 min"
+  },
+  "superPocoEspacio": {
+    "message": "Espacio para $MIN$ min",
+    "placeholders": {
+      "min": {
+        "content": "$1"
+      }
+    }
+  },
+  "superPocoEspacioNada": {
+    "message": "Casi sin espacio"
+  },
+  "errorSinVideo": {
+    "message": "La grabación ha sido demasiado corta: no se ha guardado nada"
+  },
+  "popupTitulo": {
+    "message": "Grabador MP4"
+  },
+  "popupFuente": {
+    "message": "Fuente"
+  },
+  "popupFuentePestana": {
+    "message": "Pestaña"
+  },
+  "popupFuenteVentana": {
+    "message": "Ventana"
+  },
+  "popupFuentePantalla": {
+    "message": "Pantalla"
+  },
+  "popupAyudaFuente": {
+    "message": "La eliges en el selector de Chrome"
+  },
+  "popupAudio": {
+    "message": "Audio"
+  },
+  "popupAudioNo": {
+    "message": "Sin audio"
+  },
+  "popupAudioSi": {
+    "message": "Pestaña o sistema"
+  },
+  "popupCalidad": {
+    "message": "Calidad"
+  },
+  "popupCalidadNormal": {
+    "message": "Normal"
+  },
+  "popupCalidadAlta": {
+    "message": "Alta"
+  },
+  "popupCalidadMaxima": {
+    "message": "Máxima"
+  },
+  "popupFps": {
+    "message": "Fotogramas"
+  },
+  "popupGrabar": {
+    "message": "Grabar"
+  },
+  "popupPendienteUna": {
+    "message": "Tienes 1 grabación sin guardar"
+  },
+  "popupPendientes": {
+    "message": "Tienes $N$ grabaciones sin guardar",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "popupAbrirPendientes": {
+    "message": "Abrir"
+  },
+  "popupEstimacion": {
+    "message": "≈ $PESO$ por minuto a $RES$",
+    "placeholders": {
+      "peso": {
+        "content": "$1"
+      },
+      "res": {
+        "content": "$2"
+      }
+    }
+  },
+  "popupGrabando": {
+    "message": "Grabando"
+  },
+  "popupEnPausa": {
+    "message": "En pausa"
+  },
+  "popupCerrando": {
+    "message": "Terminando la grabación…"
+  },
+  "popupPeso": {
+    "message": "Peso"
+  },
+  "popupResolucion": {
+    "message": "Resolución"
+  },
+  "popupPausa": {
+    "message": "Pausa"
+  },
+  "popupReanudar": {
+    "message": "Reanudar"
+  },
+  "popupDetener": {
+    "message": "Detener"
+  },
+  "popupCancelar": {
+    "message": "Cancelar"
+  },
+  "popupElegir": {
+    "message": "Elige qué grabar en el selector de Chrome"
+  },
+  "popupCuentaAtras": {
+    "message": "La grabación empieza en"
+  },
+  "errorCancelado": {
+    "message": "Grabación cancelada"
+  },
+  "errorPermisoSistema": {
+    "message": "Chrome no tiene permiso para grabar la pantalla. Actívalo en Ajustes del Sistema → Privacidad y seguridad → Grabación de pantalla y audio del sistema, y reinicia Chrome."
+  },
+  "errorNoEmpezar": {
+    "message": "No se ha podido empezar a grabar"
+  },
+  "errorLinux": {
+    "message": "Esta extensión funciona en Windows y macOS"
+  },
+  "errorSinMp4": {
+    "message": "No se puede grabar en MP4 en este Chrome"
+  },
+  "errorSinEspacio": {
+    "message": "Te has quedado sin espacio; se ha guardado hasta aquí"
+  },
+  "errorGrabadora": {
+    "message": "La grabación se ha cortado"
+  },
+  "errorResolucion": {
+    "message": "No se ha podido grabar a esta resolución"
+  },
+  "avisoSinAudio": {
+    "message": "Grabando sin sonido: Chrome no da el audio de esta fuente en tu sistema"
+  },
+  "avisoReducida": {
+    "message": "Grabando a $NUEVA$ (reducida desde $ORIGINAL$)",
+    "placeholders": {
+      "nueva": {
+        "content": "$1"
+      },
+      "original": {
+        "content": "$2"
+      }
+    }
+  },
+  "avisoReintento": {
+    "message": "Reintentando a menor resolución"
+  },
+  "avisoPocoEspacio": {
+    "message": "Solo hay espacio en el disco para unos $MIN$ minutos de grabación",
+    "placeholders": {
+      "min": {
+        "content": "$1"
+      }
+    }
+  },
+  "avisoPocoEspacioNada": {
+    "message": "Casi no queda espacio en el disco: la grabación se parará enseguida"
+  },
+  "avisoQuedan5Min": {
+    "message": "Quedan 5 minutos: la grabación se parará a la hora"
+  },
+  "vistaTituloPagina": {
+    "message": "Vista previa · Grabador MP4"
+  },
+  "vistaTitulo": {
+    "message": "Vista previa"
+  },
+  "vistaResolucion": {
+    "message": "Resolución"
+  },
+  "vistaDuracion": {
+    "message": "Duración"
+  },
+  "vistaPeso": {
+    "message": "Peso"
+  },
+  "vistaNombre": {
+    "message": "Nombre al guardar"
+  },
+  "vistaGuardar": {
+    "message": "Guardar"
+  },
+  "vistaDescartar": {
+    "message": "Descartar"
+  },
+  "vistaConfirmar": {
+    "message": "¿Descartar esta grabación? Se borrará y no se podrá recuperar."
+  },
+  "vistaDescartarSiempre": {
+    "message": "Descartar para siempre"
+  },
+  "vistaVolver": {
+    "message": "Volver"
+  },
+  "vistaTipoMp4": {
+    "message": "Vídeo MP4"
+  },
+  "vistaGuardado": {
+    "message": "Guardado como $NOMBRE$",
+    "placeholders": {
+      "nombre": {
+        "content": "$1"
+      }
+    }
+  },
+  "vistaDescartada": {
+    "message": "Grabación descartada"
+  },
+  "vistaNoExiste": {
+    "message": "Esta grabación ya no existe"
+  },
+  "vistaErrorGuardar": {
+    "message": "No se ha podido guardar: $MOTIVO$",
+    "placeholders": {
+      "motivo": {
+        "content": "$1"
+      }
+    }
+  },
+  "vistaErrorDescartar": {
+    "message": "No se ha podido descartar; vuelve a intentarlo"
+  },
+  "vistaMotivoPermiso": {
+    "message": "Chrome no ha dado permiso para escribir el archivo"
+  },
+  "vistaMotivoEspacio": {
+    "message": "no queda espacio en el disco"
+  },
+  "vistaMotivoEnUso": {
+    "message": "el archivo está en uso o no se puede modificar"
+  },
+  "vistaMotivoLeer": {
+    "message": "no se ha podido leer la grabación"
+  },
+  "vistaMotivoOtro": {
+    "message": "error al escribir el archivo"
+  },
+  "vistaErrorVideo": {
+    "message": "Este vídeo no se puede ver aquí, pero puedes guardarlo igualmente"
+  },
+  "vistaAvisoRecuperada": {
+    "message": "Grabación recuperada: se quedó sin guardar ni descartar"
+  },
+  "vistaAvisoCortada": {
+    "message": "Grabación recuperada: se cortó antes de terminar y puede faltarle el final"
+  },
+  "vistaAvisoReducida": {
+    "message": "Grabada a $NUEVA$, reducida desde $ORIGINAL$ (el MP4 no admite tanta resolución)",
+    "placeholders": {
+      "nueva": {
+        "content": "$1"
+      },
+      "original": {
+        "content": "$2"
+      }
+    }
+  },
+  "vistaAvisoSinAudio": {
+    "message": "Grabación sin sonido: Chrome no dio el audio de esta fuente en tu sistema"
+  },
+  "vistaFinSinEspacio": {
+    "message": "Te quedaste sin espacio y la grabación se paró: aquí está lo grabado hasta entonces"
+  },
+  "vistaFinGrabadora": {
+    "message": "La grabación se cortó por un fallo: aquí está lo grabado hasta entonces"
+  },
+  "vistaFinLimite": {
+    "message": "La grabación se paró sola al llegar a una hora"
+  },
+  "vistaYaAbierta": {
+    "message": "Esta grabación ya está abierta en otra pestaña"
+  }
+}
