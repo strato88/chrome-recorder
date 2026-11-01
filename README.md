@@ -7,7 +7,6 @@ Extensión de Chrome de uso interno de Dipesa. Graba una pestaña, una ventana o
 La extensión no está en la Chrome Web Store: se carga desde una carpeta de tu ordenador, la **carpeta de la extensión**.
 
 1. Descarga la extensión desde GitHub: en la página del proyecto, pulsa el botón verde **Code** y luego **Download ZIP**.
-   - Mientras este trabajo no se haya unido a la rama principal, el ZIP hay que bajarlo de la rama `claude/busy-keller-uoqzk7`: encima de la lista de archivos hay un botón con el nombre de la rama (normalmente «main»); púlsalo, elige `claude/busy-keller-uoqzk7` y después **Code** → **Download ZIP**.
 2. Descomprime el ZIP. En Windows: clic derecho sobre el archivo → **Extraer todo**. No lo abras desde dentro del ZIP: Chrome necesita la carpeta descomprimida. En macOS basta con hacer doble clic.
 3. Deja la carpeta descomprimida en un sitio estable (por ejemplo, en Documentos). Si la mueves o la borras, Chrome quita la extensión.
 4. En Chrome, escribe `chrome://extensions` en la barra de direcciones.

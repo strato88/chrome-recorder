@@ -6,7 +6,7 @@ Marca cada casilla con `x` al comprobarla; anota entre paréntesis lo que haya d
 
 ## Antes de empezar
 
-1. Carga la extensión en `chrome://extensions` como dice el README (ZIP de la rama `claude/busy-keller-uoqzk7` → descomprimir → Modo de desarrollador → Cargar descomprimida → la carpeta que contiene `manifest.json`). Comprueba que no sale ningún aviso de permisos al instalar.
+1. Carga la extensión en `chrome://extensions` como dice el README (ZIP de `main` → descomprimir → Modo de desarrollador → Cargar descomprimida → la carpeta que contiene `manifest.json`). Comprueba que no sale ningún aviso de permisos al instalar.
 2. En macOS, da a Chrome el permiso «Grabación de pantalla y audio del sistema» (Ajustes del Sistema → Privacidad y seguridad) y reinicia Chrome.
 3. Ten a mano `ffprobe` (viene con ffmpeg) y VLC. Se usa también QuickTime (macOS) y el reproductor de Windows («Películas y TV» o «Reproductor multimedia»).
 4. Anota el sistema, versión y versión de Chrome (`chrome://version`):
