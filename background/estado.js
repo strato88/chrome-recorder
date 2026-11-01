@@ -18,7 +18,9 @@ const TABLA = Object.freeze({
 const ATAJOS = Object.freeze({
   'alternar-grabacion': Object.freeze({
     inactivo: 'iniciar',
-    eligiendo: 'cancelar',
+    // Con el selector abierto, el atajo no hace nada: una pulsación doble rápida no
+    // debe cancelar lo que se acaba de pedir (el selector tiene su Cancelar y Escape).
+    eligiendo: null,
     cuenta_atras: 'cancelar',
     grabando: 'detener',
     en_pausa: 'detener',

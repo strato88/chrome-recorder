@@ -310,3 +310,20 @@ test('sin duplicar', T, async () => {
   const p = await inspeccionar(page);
   assert.ok(p.buscar(parte('pastilla')));
 });
+
+test('cancelar en la cuenta atrás retira el círculo y no deja número en la insignia', T, async () => {
+  const { sw } = ext;
+  const { page, tabId } = await abrirPagina(ext, url);
+  await iniciar(sw, tabId);
+  await esperarFase(sw, 'cuenta_atras');
+  await esperar(async () => {
+    const v = await inspeccionar(page);
+    return v.host && v.buscar(parte('cuenta'));
+  }, { timeout: 5000, que: 'la cuenta atrás en la página' });
+  await aplicar(sw, 'cancelar');
+  await esperar(async () => (await cuantosHost(page)) === 0, { timeout: 5000, que: 'que se retire el círculo' });
+  await dormir(1500); // pasa algún tic de la cuenta atrás que ya no corresponde
+  assert.equal(await cuantosHost(page), 0);
+  assert.equal(await sw.evaluate(() => chrome.action.getBadgeText({})), '');
+  assert.equal((await estado(sw)).fase, 'inactivo');
+});

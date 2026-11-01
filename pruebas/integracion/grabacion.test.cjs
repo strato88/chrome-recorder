@@ -217,6 +217,7 @@ test('cancelar en la cuenta atrás', T, async () => {
   assert.deepEqual(await sesiones(sw), []);
   await dormir(3500); // la cuenta atrás ya no debe arrancar la grabación
   assert.equal((await estado(sw)).fase, 'inactivo');
+  assert.equal(await sw.evaluate(() => chrome.action.getBadgeText({})), '', 'sin número viejo en la insignia');
 });
 
 test('límites', T, async () => {

@@ -2,17 +2,16 @@
 // escribe en chrome.storage.session (el service worker puede dormirse).
 import { transicion, accionAtajo, estadoInicial } from './estado.js';
 import { CONFIG_DEFECTO, CUENTA_S, AVISO_MS, MAX_MS } from '../comun/config.js';
-import { FACTORES, formatoTiempo } from '../comun/calidad.js';
+import { FACTORES } from '../comun/calidad.js';
 import { enviar, OFFSCREEN, AL_ORQUESTADOR, AVISOS } from '../comun/mensajes.js';
 import * as almacen from '../comun/almacen.js';
 import * as superposicion from './superposicion.js';
-import { iconosDeFase } from './indicadores.js';
+import { iconosDeFase, textoInsignia, COLOR_INSIGNIA } from './indicadores.js';
 import { abrirVista, recuperarSesiones } from './recuperacion.js';
 
 const CLAVE = 'estado';
 const URL_GRABADORA = 'offscreen/grabadora.html';
 const ESPERA_CANCELAR_MS = 5000;
-const COLOR = Object.freeze({ grabando: '#C8302B', en_pausa: '#8A5A00', cuenta_atras: '#2E86AB' });
 const FUENTES = Object.freeze(['browser', 'window', 'monitor']);
 const FPS = Object.freeze([30, 60]);
 
@@ -206,19 +205,24 @@ async function abrirGrabadora(estado) {
 }
 
 // Cuenta atrás: un setTimeout por segundo hasta cuentaFinMs, y entonces cuenta_fin.
+// Cada tic va en la cola: un Cancelar (o «Dejar de compartir») que llegue a la vez se
+// aplica antes o después entero, y no deja un número viejo en la insignia ni en la página.
 function programarCuenta(sesionId, finMs) {
   const tic = async () => {
-    const estado = await leerEstado();
-    if (estado.fase !== 'cuenta_atras' || estado.sesionId !== sesionId) return;
-    const restante = finMs - Date.now();
-    if (restante <= 25) {
-      await aplicar('cuenta_fin', { sesionId });
-      return;
-    }
-    await actualizarIndicadores(estado);
-    setTimeout(tic, ((restante - 1) % 1000) + 1);
+    const restante = await enCola(async () => {
+      const estado = await leerEstado();
+      if (estado.fase !== 'cuenta_atras' || estado.sesionId !== sesionId) return null;
+      const quedan = finMs - Date.now();
+      if (quedan > 25) await actualizarIndicadores(estado);
+      return quedan;
+    });
+    if (restante === null) return;
+    // Fuera de la cola actual: aplicar() pone el suyo detrás (y comprueba la sesión).
+    if (restante <= 25) await aplicar('cuenta_fin', { sesionId });
+    else setTimeout(siguienteTic, ((restante - 1) % 1000) + 1);
   };
-  setTimeout(tic, Math.max(0, ((finMs - Date.now() - 1) % 1000) + 1));
+  const siguienteTic = () => { tic().catch((e) => console.error('Grabador: cuenta atrás', e)); };
+  setTimeout(siguienteTic, Math.max(0, ((finMs - Date.now() - 1) % 1000) + 1));
 }
 
 async function cerrarGrabadora(estado, evento, cambios) {
@@ -268,19 +272,9 @@ export function recuperarHuerfanas() {
   return enCola(async () => ((await sanearFase()) ? recuperarSesiones() : []));
 }
 
-function textoInsignia(estado) {
-  switch (estado.fase) {
-    case 'grabando': return formatoTiempo(estado.ms);
-    case 'en_pausa': return 'II';
-    case 'cuenta_atras':
-      return String(Math.max(1, Math.ceil(((estado.cuentaFinMs ?? Date.now()) - Date.now()) / 1000)));
-    default: return '';
-  }
-}
-
-export async function actualizarInsignia(estado) {
+async function actualizarInsignia(estado) {
   const texto = textoInsignia(estado);
-  const color = COLOR[estado.fase];
+  const color = COLOR_INSIGNIA[estado.fase];
   if (color) await chrome.action.setBadgeBackgroundColor({ color });
   await chrome.action.setBadgeText({ text: texto });
 }
@@ -301,13 +295,19 @@ async function actualizarIndicadores(estado) {
   await actualizarInsignia(estado);
 }
 
-// Sin esperar (executeScript puede tardar en una pestaña que carga): al terminar se
-// avisa con el estado de ENTONCES, por si la grabación ya acabó o cambió de fase.
+// Sin esperar (executeScript puede tardar en una pestaña que carga). Mirar si sigue
+// vigente y avisar con el estado de ENTONCES van en la cola, para que un Cancelar a la
+// vez no deje en la página un círculo de cuenta atrás que ya no corresponde. Inyectar
+// no: con la pestaña cargando, frenaría el Cancelar.
+const FASES_SUPERPOSICION = Object.freeze(['cuenta_atras', 'grabando', 'en_pausa']);
+
 function inyectarSuperposicion(sesionId) {
-  leerEstado().then(async (estado) => {
-    const vigente = estado.sesionId === sesionId && ['cuenta_atras', 'grabando', 'en_pausa'].includes(estado.fase);
-    if (!vigente || !(await superposicion.inyectar(estado))) return;
-    superposicion.avisar(await leerEstado());
+  enCola(async () => {
+    const estado = await leerEstado();
+    return estado.sesionId === sesionId && FASES_SUPERPOSICION.includes(estado.fase) ? estado : null;
+  }).then(async (estado) => {
+    if (!estado || !(await superposicion.inyectar(estado))) return;
+    await enCola(async () => superposicion.avisar(await leerEstado()));
   }).catch(() => {});
 }
 

@@ -44,10 +44,16 @@ test('fase o evento desconocidos: null', () => {
 
 test('accionAtajo alternar-grabacion', () => {
   const esperado = {
-    inactivo: 'iniciar', eligiendo: 'cancelar', cuenta_atras: 'cancelar',
+    inactivo: 'iniciar', eligiendo: null, cuenta_atras: 'cancelar',
     grabando: 'detener', en_pausa: 'detener', cerrando: null,
   };
   for (const fase of FASES) assert.equal(accionAtajo(fase, 'alternar-grabacion'), esperado[fase], fase);
+});
+
+test('accionAtajo: una pulsación doble rápida es una sola grabación', () => {
+  // 1.ª pulsación: inactivo → iniciar; la 2.ª llega con el selector abierto y no hace nada.
+  assert.equal(accionAtajo('inactivo', 'alternar-grabacion'), 'iniciar');
+  assert.equal(accionAtajo('eligiendo', 'alternar-grabacion'), null);
 });
 
 test('accionAtajo alternar-pausa', () => {

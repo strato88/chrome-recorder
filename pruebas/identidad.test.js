@@ -94,3 +94,14 @@ test('el icono sigue a la fase: grabando en cuenta atrás, grabación y pausa', 
     assert.equal(iconosDeFase(fase)[16], 'iconos/reposo-16.png', String(fase));
   }
 });
+
+test('insignia: mm:ss grabando, II en pausa, segundos en la cuenta atrás, vacía en reposo', async () => {
+  const { textoInsignia, COLOR_INSIGNIA } = await import('../background/indicadores.js');
+  assert.equal(textoInsignia({ fase: 'grabando', ms: 61500 }), '01:01');
+  assert.equal(textoInsignia({ fase: 'en_pausa', ms: 5000 }), 'II');
+  assert.equal(textoInsignia({ fase: 'cuenta_atras', cuentaFinMs: 10000 }, 7500), '3');
+  assert.equal(textoInsignia({ fase: 'cuenta_atras', cuentaFinMs: 10000 }, 9990), '1');
+  assert.equal(textoInsignia({ fase: 'cuenta_atras', cuentaFinMs: 10000 }, 12000), '1');
+  for (const fase of ['inactivo', 'eligiendo', 'cerrando']) assert.equal(textoInsignia({ fase }), '');
+  assert.equal(COLOR_INSIGNIA.grabando, '#C8302B');
+});
