@@ -1,231 +1,242 @@
 # Grabador MP4 para Chrome: especificación
 
-**Estado:** borrador para aprobación · 1 de noviembre de 2026
-**Origen:** decisiones confirmadas en la página de la Fase 0 (https://claude.ai/artifact/MsHTrfhhM28DQN4mnWXwoy) y la aclaración posterior sobre el guardado.
-**Siguiente paso:** con esta especificación aprobada se hace la Fase 1 (diagnóstico técnico con fuentes oficiales). Lo marcado **[F1]** se comprueba allí y puede ajustar el diseño antes de escribir código.
+**Estado:** v2, revisada tras la Fase 1 · 1 de noviembre de 2026
+**Origen:** decisiones confirmadas en la página de la Fase 0 (https://claude.ai/artifact/MsHTrfhhM28DQN4mnWXwoy), la aclaración sobre el guardado, el diagnóstico de la Fase 1 (`docs/fase1-diagnostico.md`) y dos decisiones posteriores: la pestaña se elige en el selector de Chrome y Linux queda fuera.
+**Marcas:** **[F3]** = no se puede comprobar sin un Windows o un Mac reales; se verifica en la Fase 3 con la checklist.
+
+### Cambios respecto a la v1
+
+| v1 | v2 | Motivo |
+|---|---|---|
+| Pestaña sin selector con `tabCapture` | Pestaña elegida en el selector de Chrome | `tabCapture` hace que Chrome avise al instalar de «leer y cambiar todos tus datos de todos los sitios web» |
+| Ventana/pantalla con `desktopCapture` desde el service worker | `getDisplayMedia()` dentro del offscreen (motivo `DISPLAY_MEDIA`) para las tres fuentes | `desktopCapture` no funciona desde el service worker y su id no vale en el offscreen (Fase 1 §1) |
+| Pedir la resolución con `maxWidth/maxHeight` altos | No pedir tamaño; leer `getSettings()` | Con máximos altos Chrome agranda la imagen (Fase 1 §4) |
+| Reenviar el audio de la pestaña a los altavoces | No hace falta | Con `getDisplayMedia` la pestaña sigue sonando **[F3]** |
+| Cualquier sistema | Windows y macOS | En Linux Chrome no codifica AAC (Fase 1 §2) |
+| Permisos `tabCapture`, `desktopCapture` | Fuera | Ya no se usan; la extensión se instala sin ningún aviso |
 
 ---
 
 ## 1. Qué es
 
-Una extensión de Chrome (Manifest V3) que graba una pestaña, una ventana o la pantalla completa a un archivo **MP4 (H.264 + AAC)**, a la **resolución nativa** de lo que se graba, con audio opcional de la pestaña o del sistema. Uso interno de Dipesa. No se publica en Chrome Web Store.
+Una extensión de Chrome (Manifest V3) que graba una pestaña, una ventana o la pantalla completa a un archivo **MP4 (H.264 + AAC)**, a la **resolución nativa** de lo que se graba, con audio opcional de la pestaña o del sistema. Uso interno de Dipesa, en **Windows y macOS**, Chrome 126 o posterior. No se publica en Chrome Web Store.
 
-**Criterio de éxito:** un MP4 que se abre en QuickTime, VLC y el reproductor de Windows, con la resolución física de la pantalla o ventana grabada (comprobado con `ffprobe`), con el sonido cuando se ha pedido y está disponible, y sin perder lo grabado si algo falla a mitad.
+**Criterio de éxito:** un MP4 que se abre en QuickTime, VLC y el reproductor de Windows, con la resolución física de la pantalla, ventana o pestaña grabada (comprobada con `ffprobe`), con sonido cuando se ha pedido y está disponible, y sin perder lo grabado si algo falla a mitad.
 
-## 2. Decisiones confirmadas
+## 2. Decisiones
 
 | Tema | Decisión |
 |---|---|
-| Ubicación del código | **Repositorio nuevo, aparte de NewFox** |
-| Identidad visual | Imagen de Dipesa: azul `#2E86AB`, Outfit + JetBrains Mono empaquetadas, rojo solo para «grabando», modo claro y oscuro |
-| Fuentes | Pestaña · Ventana · Pantalla completa |
-| Audio | **Sin audio** o **audio de la pestaña / del sistema**. Sin micrófono y sin mezcla |
+| Ubicación del código | Repositorio `strato88/chrome-recorder` |
+| Sistemas | Windows y macOS. En Linux la extensión dice que no está soportada y no graba |
+| Identidad visual | Imagen de Dipesa: azul `#2E86AB`, Outfit + JetBrains Mono empaquetadas, rojo solo para «grabando», claro y oscuro |
+| Fuentes | Pestaña · Ventana · Pantalla completa, **todas a través del selector de Chrome** |
+| Audio | Sin audio, o audio de la pestaña / del sistema. Sin micrófono ni mezcla |
 | Resolución | Nativa, con tope del codificador (reduce manteniendo proporción y avisa) |
 | Fotogramas | Se eligen en el popup: 30 (por defecto) o 60 |
-| Calidad | Tres niveles: Normal (por defecto), Alta, Máxima |
+| Calidad | Normal (por defecto), Alta, Máxima |
 | Formato | MP4 nativo de Chrome (`MediaRecorder`), sin conversión |
-| Acumulación | En el disco, por trozos, dentro de la extensión (recuperable si Chrome se cierra) |
-| Duración máxima | **1 hora**: aviso a los 55 min, parada a los 60 |
+| Acumulación | En el disco, por trozos, dentro de la extensión (recuperable) |
+| Duración máxima | 1 hora: aviso a los 55 min, parada a los 60 |
 | Cuenta atrás | 3 segundos, cancelable |
 | Pausa | Sí |
-| Al detener | **Vista previa; «Guardar» abre el diálogo Guardar como; «Descartar» lo borra** |
+| Al detener | Vista previa; «Guardar» abre Guardar como; «Descartar» lo borra |
 | Nombre del archivo | `Titulo-de-la-pestana_AAAA-MM-DD_HH-MM.mp4` |
 | Atajos | `Alt+Mayús+R` iniciar o detener · `Alt+Mayús+P` pausar o reanudar |
-| Popup | C · Lista compacta (desplegables) |
-| Indicador | Insignia en el icono + temporizador en el popup + **superposición en la página** |
-| Idioma | Solo castellano (textos en `_locales/es`, para poder traducir después) |
+| Popup | Lista compacta (desplegables) |
+| Indicador | Insignia en el icono + temporizador en el popup + superposición en la página |
+| Idioma | Castellano (textos en `_locales/es`) |
 
-Quedan fuera: micrófono, mezcla de audios, cámara, edición, subida a la nube y publicación en la tienda.
+Quedan fuera: Linux, micrófono, mezcla de audios, cámara, edición, subida a la nube y publicación en la tienda.
 
 ## 3. Arquitectura
 
 ```mermaid
 flowchart LR
   P[Popup<br/>lista compacta] -- mensajes --> SW[Service worker<br/>orquestador]
-  K[Atajos<br/>chrome.commands] --> SW
-  SW -- getMediaStreamId /<br/>chooseDesktopMedia --> SW
-  SW -- crea + streamId --> OD[Documento offscreen<br/>captura + MediaRecorder]
+  K[Atajos] --> SW
+  SW -- crea y ordena --> OD[Documento offscreen<br/>DISPLAY_MEDIA<br/>getDisplayMedia + MediaRecorder]
+  OD -- selector de Chrome --> U((Usuario elige<br/>pestaña, ventana o pantalla))
   OD -- trozos MP4 --> DB[(IndexedDB<br/>de la extensión)]
-  OD -- tiempo, peso, errores --> SW
+  OD -- tiempo, peso, avisos --> SW
   SW -- insignia --> I[Icono]
-  SW -- inyecta --> O[Superposición<br/>en la pestaña]
+  SW -- inyecta --> O[Superposición]
   SW -- abre al detener --> V[Vista previa]
   V -- lee trozos --> DB
-  V -- Guardar como --> F[Archivo MP4]
+  V -- showSaveFilePicker --> F[Archivo MP4]
 ```
 
-**Por qué así.** La grabación vive en un documento offscreen: no depende de que el popup siga abierto (se cierra al hacer clic fuera) y no deja una pestaña de grabadora a la vista. El service worker solo coordina y puede dormirse sin cortar la grabación. Los trozos van al disco, así que una hora a 4K no llena la memoria.
+**Por qué así.** El documento offscreen abre el selector, recibe la captura y graba; no depende del popup (que se cierra al hacer clic fuera) y no deja ninguna ventana a la vista. Una sola forma de capturar para las tres fuentes. El service worker solo coordina y puede dormirse sin cortar la grabación. Los trozos van al disco.
+
+**Reserva [F3]:** en la Fase 1 el selector se eligió solo (opción de pruebas de Chrome). Con una persona eligiendo, hay que confirmar que Chrome no exige una «activación por el usuario» que el offscreen no tiene. Si la exigiera, el plan B probado es abrir una ventanita de la extensión que abre el selector y graba ella misma; el resto del diseño no cambia.
 
 ### 3.1 Piezas
 
 | Pieza | Fichero(s) | Hace | No hace |
 |---|---|---|---|
-| Manifiesto | `manifest.json` | Permisos, atajos, idioma por defecto `es` | — |
-| Orquestador | `background/service-worker.js` + `background/estado.js` | Máquina de estados, insignia, atajos, ids de captura, crear y cerrar el offscreen, inyectar la superposición, abrir la vista previa, recuperar grabaciones huérfanas | Tocar `MediaStream` (no puede) |
-| Grabadora | `offscreen/grabadora.html` + `offscreen/grabadora.js` | `getUserMedia` con el id, comprobar resolución, aplicar tope, reenviar audio de pestaña, `MediaRecorder`, escribir trozos, detectar fin de pista | Interfaz (es invisible) |
+| Manifiesto | `manifest.json` | Permisos, atajos, idioma por defecto `es`, `minimum_chrome_version` 126 | — |
+| Orquestador | `background/service-worker.js` + `background/estado.js` | Máquina de estados, insignia, atajos, crear y cerrar el offscreen, inyectar la superposición, abrir la vista previa, recuperar grabaciones huérfanas | Tocar `MediaStream` |
+| Grabadora | `offscreen/grabadora.html` + `offscreen/grabadora.js` | `getDisplayMedia`, comprobar resolución, tope y vigilante, `MediaRecorder`, escribir trozos, detectar fin de captura | Interfaz (es invisible) |
 | Almacén | `comun/almacen.js` | IndexedDB: sesiones y trozos, espacio libre, borrar | — |
-| Popup | `popup/popup.html` + `.js` + `.css` | Configurar y lanzar; mientras graba: tiempo, peso, Pausa, Detener | Grabar |
-| Superposición | `superposicion/superposicion.js` (+ CSS en shadow DOM) | Cuenta atrás grande, pastilla con tiempo, Pausa, Detener, Ocultar | Nada fuera de su shadow root |
-| Vista previa | `vista/vista.html` + `.js` + `.css` | Reproducir, enseñar resolución real, duración, peso; Guardar como; Descartar con confirmación | — |
-| Comunes | `comun/config.js`, `comun/nombre.js`, `comun/calidad.js`, `comun/mensajes.js` | Valores por defecto, nombre de archivo, cálculo de bitrate, tipos de mensaje | — |
-| Estilo | `comun/estilo.css`, `fuentes/` (woff2 + licencias OFL) | Tokens de color y letra, claro y oscuro | — |
+| Popup | `popup/` | Configurar y lanzar; mientras graba: tiempo, peso, Pausa, Detener | Grabar |
+| Superposición | `superposicion/superposicion.js` | Cuenta atrás grande, pastilla con tiempo, Pausa, Detener, Ocultar | Nada fuera de su shadow root |
+| Vista previa | `vista/` | Reproducir; resolución real, duración, peso; Guardar como; Descartar con confirmación | — |
+| Comunes | `comun/config.js`, `nombre.js`, `calidad.js`, `codec.js`, `mensajes.js` | Valores por defecto, nombre de archivo, bitrate y tope, elección del códec, tipos de mensaje | — |
+| Estilo | `comun/estilo.css`, `fuentes/` | Tokens de color y letra, claro y oscuro | — |
 | Textos | `_locales/es/messages.json` | Todos los textos visibles | — |
 
-Cada fichero hace una cosa y se entiende sin leer los demás; los módulos puros (`nombre.js`, `calidad.js`, la tabla de transiciones de `estado.js`) se prueban sin Chrome.
+Los módulos puros (`nombre.js`, `calidad.js`, `codec.js`, la tabla de transiciones de `estado.js`) se prueban sin Chrome.
 
-### 3.2 Máquina de estados (en el orquestador)
+### 3.2 Máquina de estados
 
 ```
 inactivo → eligiendo → cuenta_atras → grabando ⇄ en_pausa → cerrando → vista_previa → inactivo
-                ↘ (cancelado) inactivo      ↘ (cancelado) inactivo
+               ↘ (cancelado) inactivo    ↘ (cancelado) inactivo
 ```
 
-- El estado vive en `chrome.storage.session` para sobrevivir a que Chrome duerma el service worker.
-- Solo una grabación a la vez. Pulsar «Grabar» o el atajo con una grabación en curso equivale a Detener.
-- Cada transición está en una tabla; una transición no prevista se registra y se ignora.
+- Estado en `chrome.storage.session` (sobrevive a que Chrome duerma el service worker).
+- Una sola grabación a la vez. «Grabar» o el atajo durante una grabación equivale a Detener.
+- Las transiciones están en una tabla; una no prevista se registra y se ignora.
 
 ### 3.3 Flujo de una grabación
 
-1. **Popup** (o `Alt+Mayús+R`, con la última configuración guardada): fuente, audio, calidad y fps.
-2. **Id de captura**:
-   - Pestaña: `chrome.tabCapture.getMediaStreamId({targetTabId})` sobre la pestaña activa, sin selector.
-   - Ventana o pantalla: `chrome.desktopCapture.chooseDesktopMedia(['window'|'screen', 'audio'?])`. Si el usuario cancela, el id llega vacío → «Grabación cancelada», vuelta a inactivo.
-3. **Offscreen**: se crea con el motivo `USER_MEDIA` (o `DISPLAY_MEDIA`, según la Fase 1) y recibe el id. Hace `getUserMedia` con `chromeMediaSource: 'tab' | 'desktop'` y `chromeMediaSourceId`.
-4. **Resolución**: lee `track.getSettings()`. Si supera el tope del codificador, aplica `applyConstraints` con la proporción mantenida y avisa (§4.1).
-5. **Audio**: con pestaña, la pista de audio se reenvía también a los altavoces (`AudioContext` → `destination`) para que se siga oyendo. Si se pidió audio y no llegó pista, se avisa «Grabando sin sonido: Chrome no da el audio de esta fuente en tu sistema» y se sigue.
-6. **Cuenta atrás de 3 s**: insignia «3», «2», «1» y número grande en la superposición. Cancelable desde el popup, desde la superposición o con el atajo.
-7. **Grabación**: `MediaRecorder` con `timeslice` de 2 s; cada trozo se escribe en IndexedDB con su número de orden.
-8. **Durante**: la insignia enseña el tiempo; el popup y la superposición enseñan tiempo y peso. A los 55 min, aviso; a los 60, parada automática.
-9. **Detener** (botón, atajo, barra «Dejar de compartir» de Chrome, ventana o pestaña cerrada): `recorder.stop()`, se espera el último trozo, se paran **todas** las pistas, se cierra el `AudioContext` y luego el documento offscreen.
-10. **Vista previa** en una pestaña nueva: vídeo, resolución real, duración, peso, aviso si se redujo la resolución o no hubo audio. **Guardar** abre Guardar como con el nombre propuesto; al terminar de escribir, se borran los trozos. **Descartar** pide confirmación en la propia página y borra los trozos.
+1. **Popup** (o `Alt+Mayús+R` con la última configuración): fuente preferida, audio, calidad y fps. Se guarda el título de la pestaña activa (para el nombre del archivo) y su id (para la superposición).
+2. **Offscreen**: el orquestador lo crea con el motivo `DISPLAY_MEDIA` y le pide empezar.
+3. **Selector**: `getDisplayMedia({video: {displaySurface: 'browser'|'window'|'monitor', frameRate}, audio, systemAudio: 'include', windowAudio: 'system', selfBrowserSurface: 'exclude', surfaceSwitching: 'exclude'})`. `displaySurface` solo preselecciona la pestaña del selector; el usuario puede elegir otra cosa y se graba lo que elija. Si cancela (`NotAllowedError`) → «Grabación cancelada», vuelta a inactivo.
+4. **Resolución** (§4.1) y **audio**: si se pidió audio y no hay pista, aviso «Grabando sin sonido: Chrome no da el audio de esta fuente en tu sistema» y se sigue.
+5. **Códec** (§4.2). Si no hay ninguno aceptable, mensaje y no se graba.
+6. **Cuenta atrás de 3 s** con la captura ya abierta: insignia «3», «2», «1» y número grande en la superposición. Cancelable.
+7. **Grabación**: `MediaRecorder` con `timeslice` de 2 s; cada trozo (un fragmento MP4 completo) se escribe en IndexedDB con su número de orden. Vigilante: si en 5 s no llega el primer trozo, se para y se reintenta a menor tamaño (§4.1).
+8. **Durante**: insignia con el tiempo; popup y superposición con tiempo y peso. A los 55 min, aviso; a los 60, parada.
+9. **Detener** (botón, atajo, «Dejar de compartir» de Chrome, pestaña o ventana grabada cerrada → evento `ended`): `recorder.stop()`, último trozo, `liberar()` (§6) y cierre del offscreen.
+10. **Vista previa** en pestaña nueva: vídeo, resolución real, duración, peso, avisos (reducida, sin audio). **Guardar** → Guardar como con el nombre propuesto; escritos todos los trozos, se borran. **Descartar** → confirmación en la página y se borran.
 
 ## 4. Reglas de detalle
 
 ### 4.1 Resolución y tope
 
-- Objetivo: los píxeles físicos de la fuente. Se piden con `maxWidth`/`maxHeight` altos (sin `min` ni `exact`, que `getDisplayMedia` rechaza) y se usa siempre lo que dice `getSettings()`, nunca `window.devicePixelRatio` del popup (con varios monitores cada uno tiene el suyo).
-- Tope: H.264 nivel 5.2, 36 864 macrobloques por fotograma (≈ 9,4 M píxeles, p. ej. 4096×2304). Por encima (5K: 5120×2880) se reduce al mayor tamaño que quepa con la misma proporción, en dimensiones pares, y se avisa en la vista previa. **[F1]** comprobar si el codificador de Chrome acepta niveles superiores; si los acepta, el tope sube.
-- Antes de empezar se prueban con `MediaRecorder.isTypeSupported()` los perfiles `avc1` de mayor a menor (High → Main → Baseline) con el nivel adecuado, junto a `mp4a.40.2`, y se usa el primero aceptado. Si ninguno: mensaje «Hace falta Chrome 126 o posterior para grabar en MP4» y no se graba en otro formato.
-- Si se redimensiona la ventana grabada a mitad: **[F1]** ver qué hace Chrome; el comportamiento deseado es mantener el tamaño inicial del vídeo con el contenido escalado.
+- **No se pide tamaño.** Sin restricciones Chrome entrega los píxeles físicos (Fase 1 §4). Se lee siempre `getSettings()`.
+- **Tope:** 36 864 macrobloques por fotograma (≈ 9,4 M píxeles, p. ej. 4096×2304; H.264 nivel 5.1/5.2). Por encima (5K) se reduce con `applyConstraints` al mayor tamaño que quepa, proporción mantenida, dimensiones pares, y se avisa. **[F3]** comprobar en Windows y macOS si el codificador del sistema admite más; si lo admite, el tope sube.
+- **Vigilante:** sin primer trozo en 5 s → parar y reintentar una vez a 1920 px de ancho como máximo; si vuelve a fallar, mensaje y fin.
+- **Redimensionar la ventana grabada:** **[F3]** ver qué hace Chrome; lo deseado es mantener el tamaño inicial del vídeo con el contenido escalado.
 
-### 4.2 Calidad
+### 4.2 Códec
 
-Bitrate de vídeo = ancho × alto × fps × factor, con factor 0,07 (Normal), 0,10 (Alta), 0,15 (Máxima). Audio AAC a 128 kbps. Referencias (Normal, 30 fps): 1080p ≈ 4,4 Mbps; 1440p ≈ 7,7 Mbps (≈ 3,5 GB/h); 4K ≈ 17 Mbps.
+Se prueban con `MediaRecorder.isTypeSupported()`, en este orden, y se usa el primero aceptado:
+`video/mp4;codecs="avc1.640034,mp4a.40.2"` → `avc1.4D0034` → `avc1.42E034` → `video/mp4;codecs="avc1,mp4a.40.2"`.
+Sin audio, los mismos sin `mp4a.40.2`. Si ninguno se acepta: en Linux, «Esta extensión funciona en Windows y macOS»; en otro sistema, «Hace falta Chrome 126 o posterior». Nunca se graba en otro formato a escondidas. **[F3]** confirmar AAC en Windows y macOS.
 
-### 4.3 Espacio en disco
+### 4.3 Calidad
 
-- Permiso `unlimitedStorage` para que IndexedDB no tenga el tope por defecto.
-- Antes de empezar: `navigator.storage.estimate()` contra lo que ocuparía una hora a la calidad elegida. Si no cabe, se avisa con la duración que sí cabe y se deja grabar.
-- Si una escritura falla por espacio: se detiene la grabación y se pasa a la vista previa con lo grabado.
+Bitrate de vídeo = ancho × alto × fps × factor (0,07 Normal · 0,10 Alta · 0,15 Máxima). Audio AAC 128 kbps. Referencias (Normal, 30 fps): 1080p ≈ 4,4 Mbps; 1440p ≈ 7,7 Mbps (≈ 3,5 GB/h); 4K ≈ 17 Mbps.
 
-### 4.4 Recuperación
+### 4.4 Espacio en disco
 
-Al arrancar Chrome o despertar el service worker, si hay una sesión en IndexedDB que no está en la vista previa ni grabando, se abre la vista previa marcada «Grabación recuperada». **[F1]** comprobar que un MP4 fragmentado al que le falta el último fragmento se reproduce y se puede guardar.
+- `unlimitedStorage` (quita el tope de IndexedDB; sin aviso al instalar).
+- Antes de empezar, `navigator.storage.estimate()` contra una hora a la calidad elegida; si no cabe, aviso con la duración que sí cabe, y se deja grabar.
+- Escritura fallida por espacio → se detiene y pasa a la vista previa con lo grabado.
 
-### 4.5 Nombre del archivo
+### 4.5 Recuperación
+
+Al despertar el service worker, una sesión en IndexedDB que no está grabando ni en vista previa se abre en la vista previa como «Grabación recuperada». Comprobado en la Fase 1: un MP4 sin su último trozo es válido.
+
+### 4.6 Nombre del archivo
 
 `{titulo}_{AAAA-MM-DD}_{HH-MM}.mp4`
 
-- `{titulo}`: título de la pestaña al empezar; «Ventana» o «Pantalla» en esas fuentes.
-- Limpieza: sin tildes ni diacríticos, espacios y caracteres prohibidos en Windows o macOS (`\ / : * ? " < > |`) → `-`, guiones repetidos reducidos, máximo 80 caracteres en el título, nunca vacío (si queda vacío, «Grabacion»).
-- Fecha y hora del inicio de la grabación, hora local.
-- El diálogo Guardar como deja cambiarlo.
+- `{titulo}`: si se grabó una **pestaña**, el título de la pestaña activa al pulsar Grabar (Chrome no dice el título de la pestaña elegida en el selector; si se eligió otra, se corrige en Guardar como). Si se grabó una **ventana** o la **pantalla** (según `displaySurface` de la captura), «Ventana» o «Pantalla».
+- Limpieza: sin tildes ni diacríticos; espacios y `\ / : * ? " < > |` → `-`; guiones repetidos reducidos; máximo 80 caracteres en el título; si queda vacío, «Grabacion».
+- Fecha y hora locales del inicio de la grabación.
 
-### 4.6 Guardado
+### 4.7 Guardado
 
-En la vista previa, «Guardar» usa `showSaveFilePicker` y escribe los trozos uno a uno en el archivo (sin cargar el vídeo entero en memoria). No hace falta el permiso `downloads`. **[F1]** confirmar que `showSaveFilePicker` funciona en una página de extensión; si no, se usa `chrome.downloads.download({saveAs: true})` y se añade el permiso `downloads`.
+`showSaveFilePicker` desde la vista previa (existe en páginas de la extensión, Fase 1 §6), escribiendo los trozos uno a uno. Sin permiso `downloads`. **[F3]** abrir el diálogo con una persona.
 
-### 4.7 Atajos
+### 4.8 Atajos
 
-`chrome.commands`: `alternar-grabacion` (`Alt+Shift+R`) y `alternar-pausa` (`Alt+Shift+P`). Solo funcionan con Chrome en primer plano; se pueden cambiar en `chrome://extensions/shortcuts`. Desde el atajo, una grabación de pestaña empieza en la pestaña activa sin selector; ventana y pantalla abren el selector de Chrome igualmente.
+`chrome.commands`: `alternar-grabacion` (`Alt+Shift+R`) y `alternar-pausa` (`Alt+Shift+P`). Solo con Chrome en primer plano; se cambian en `chrome://extensions/shortcuts`. Iniciar con el atajo abre el selector con la fuente preferida guardada.
 
-### 4.8 Superposición
+### 4.9 Superposición
 
-- Se inyecta con `chrome.scripting` en la pestaña activa al empezar, gracias a `activeTab` (sin pedir acceso a todas las webs).
-- Contenido: número grande durante la cuenta atrás; después, una pastilla arrastrable con punto rojo, tiempo, Pausa, Detener y Ocultar. Shadow DOM cerrado, no lee ni toca la página.
-- **Sale en el vídeo** si esa pestaña está a la vista en lo que se graba (siempre que la fuente es esa pestaña). Por eso tiene «Ocultar», y la insignia y el popup siguen funcionando.
-- No se puede poner en páginas internas de Chrome ni en la tienda; allí solo queda la insignia. Si se navega a otra web, desaparece y no se vuelve a poner (para eso haría falta acceso a todas las webs).
+- Se inyecta con `chrome.scripting` en la pestaña que estaba activa al pulsar Grabar (`activeTab`, sin acceso a todas las webs).
+- Número grande durante la cuenta atrás; después, pastilla arrastrable con punto rojo, tiempo, Pausa, Detener y Ocultar. Shadow DOM cerrado.
+- Sale en el vídeo si esa pestaña está a la vista en lo grabado: por eso «Ocultar».
+- No se puede poner en páginas internas de Chrome ni en la tienda; si se navega a otra web, desaparece. La insignia sigue siempre.
 
-### 4.9 Popup (lista compacta)
+### 4.10 Popup (lista compacta)
 
-- **Parado:** Fuente (Pestaña / Ventana / Pantalla) · Audio (Sin audio / Pestaña o sistema; si en este sistema no hay audio del sistema para la fuente elegida, la opción lo dice) · Calidad (Normal / Alta / Máxima) · fps (30 / 60) · botón **Grabar** · línea con la resolución que se espera y el peso por minuto.
-- **Grabando:** tiempo, peso acumulado, resolución real, aviso si no hay audio, **Pausa** y **Detener**.
-- La última configuración se recuerda (`chrome.storage.local`).
+- **Parado:** Fuente (Pestaña / Ventana / Pantalla; texto de ayuda: «la eliges en el selector de Chrome») · Audio (Sin audio / Pestaña o sistema) · Calidad · fps · **Grabar** · línea con el peso estimado por minuto a la resolución de la pantalla.
+- **Grabando:** tiempo, peso, resolución real, aviso si no hay audio, **Pausa**, **Detener**.
+- Última configuración en `chrome.storage.local`.
 
-### 4.10 Insignia
+### 4.11 Insignia
 
-Rojo con `mm:ss` (la duración máxima es una hora, así que cabe siempre); ámbar con `II` en pausa; número durante la cuenta atrás; vacía en reposo.
+Rojo con `mm:ss`; ámbar con `II` en pausa; número en la cuenta atrás; vacía en reposo.
 
 ## 5. Permisos
 
 | Permiso | Para qué | Aviso al instalar |
 |---|---|---|
-| `tabCapture` | Grabar una pestaña sin selector | [F1] |
-| `desktopCapture` | Selector de ventana o pantalla | [F1] |
-| `offscreen` | Documento invisible donde vive la grabación | No |
-| `activeTab` | Poner la superposición en la pestaña activa sin acceso a todas las webs | No |
-| `scripting` | Inyectar la superposición | No (sin permisos de host) |
-| `storage` | Recordar la configuración y el estado de la grabación | No |
-| `unlimitedStorage` | Grabaciones de hasta una hora en el disco | No |
+| `offscreen` | Documento invisible que abre el selector y graba | Ninguno |
+| `activeTab` | Superposición y título de la pestaña activa, solo al pulsar Grabar o el atajo | Ninguno |
+| `scripting` | Inyectar la superposición | Ninguno |
+| `storage` | Configuración y estado de la grabación | Ninguno |
+| `unlimitedStorage` | Grabaciones de hasta una hora en el disco | Ninguno |
 
-Sin permisos de host. Sin `downloads` salvo que la Fase 1 lo obligue (§4.6). Política de seguridad de contenido por defecto de MV3; sin código remoto, sin WebAssembly, sin dependencias.
+Sin permisos de host, sin `tabCapture`, sin `desktopCapture`, sin `downloads`. **La extensión se instala sin ningún aviso de permisos** (según la lista oficial). Política de seguridad por defecto de MV3; sin código remoto, sin WebAssembly, sin dependencias.
 
 ## 6. Errores
 
 | Situación | Qué ve el usuario | Qué hace la extensión |
 |---|---|---|
-| Cancela el selector | «Grabación cancelada» en el popup | Vuelve a reposo |
-| Pestaña interna de Chrome o de la tienda | «Chrome no deja grabar esta página» | No empieza |
-| Cierra la ventana o pestaña grabada, o pulsa «Dejar de compartir» | Vista previa con lo grabado | Detiene y libera todo |
-| Pidió audio y no llegó | Aviso en el popup, la superposición y la vista previa | Graba sin sonido |
-| MP4 no soportado (Chrome < 126) | «Hace falta Chrome 126 o posterior» | No graba |
-| Resolución por encima del tope | Aviso en la vista previa con ambas resoluciones | Reduce |
-| El codificador rechaza el tamaño aun así | «No se ha podido grabar a esta resolución» | Reintenta una vez a 1080p de alto; si falla, para |
-| Sin espacio | «Te has quedado sin espacio; se ha guardado hasta aquí» | Detiene y pasa a la vista previa |
-| Error de `MediaRecorder` | «La grabación se ha cortado» | Conserva los trozos y pasa a la vista previa |
-| Chrome se cierra grabando | «Grabación recuperada» al volver | §4.4 |
-| Guardar como cancelado | Nada; sigue en la vista previa | Los trozos se conservan |
+| Cancela el selector | «Grabación cancelada» | Vuelve a reposo |
+| Linux | «Esta extensión funciona en Windows y macOS» | No graba |
+| Chrome < 126 | No se instala (`minimum_chrome_version`) | — |
+| Ningún códec aceptado | «No se puede grabar en MP4 en este Chrome» | No graba |
+| Cierra lo grabado o pulsa «Dejar de compartir» | Vista previa con lo grabado | Detiene y libera |
+| Pidió audio y no llegó | Aviso en popup, superposición y vista previa | Graba sin sonido |
+| Resolución sobre el tope | Aviso en la vista previa con ambas resoluciones | Reduce |
+| Vigilante: no sale nada en 5 s | «No se ha podido grabar a esta resolución; reintentando más pequeño» | §4.1 |
+| Sin espacio | «Te has quedado sin espacio; se ha guardado hasta aquí» | Detiene, vista previa |
+| Error de `MediaRecorder` | «La grabación se ha cortado» | Conserva trozos, vista previa |
+| Chrome se cierra grabando | «Grabación recuperada» al volver | §4.5 |
+| Guardar como cancelado | Nada; sigue en la vista previa | Conserva trozos |
+| Selector exige activación del usuario | — | Plan B de §3 **[F3]** |
 
-**Liberar siempre:** pistas (`track.stop()` de todas), `AudioContext.close()`, `URL.revokeObjectURL` de lo creado y cierre del documento offscreen. Esto vive en una única función `liberar()` que se llama desde todos los caminos de salida (incluidos los errores).
+**Liberar siempre:** una única función `liberar()` (todas las pistas con `track.stop()`, `URL.revokeObjectURL` de lo creado, cierre del offscreen), llamada desde todos los caminos de salida, errores incluidos.
 
 ## 7. Pruebas
 
-- **Automáticas (sin Chrome, con Node):** nombre de archivo (limpieza, longitud, vacíos), cálculo de bitrate y tope de resolución, tabla de transiciones del estado.
-- **Manuales (Fase 3):** cada fuente × cada modo de audio, en Windows y macOS (y Linux si se usa), con la checklist, las instrucciones de carga en `chrome://extensions` y la comprobación con:
+- **Automáticas (Node, sin Chrome):** nombre de archivo, bitrate y tope, elección de códec, tabla de transiciones.
+- **De integración (Chrome for Testing + Xvfb, como en la Fase 1):** flujo completo con selección automática: grabar 5 s de pantalla y de pestaña, comprobar con `ffprobe` resolución y pistas, y la recuperación sin el último trozo. Linux no tiene AAC, así que aquí se comprueba con Opus forzado solo en modo de prueba.
+- **Manuales (Fase 3):** cada fuente × cada modo de audio en Windows y macOS, con la checklist, la carga en `chrome://extensions` y:
   `ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,profile,width,height,r_frame_rate -show_entries format=duration -of default=nw=1 archivo.mp4`
-  La anchura y la altura deben coincidir con la resolución física de la pantalla o ventana (o con la reducida, si la vista previa lo avisó).
 
-## 8. Qué comprueba la Fase 1 antes de programar
+## 8. Pendiente de la Fase 3 (máquinas reales)
 
-1. Motivo correcto del documento offscreen para ids de `tabCapture` y `desktopCapture` (`USER_MEDIA` o `DISPLAY_MEDIA`).
-2. `isTypeSupported` real de `video/mp4` con `avc1` (niveles) + `mp4a.40.2` en el Chrome actual; si el MP4 sale fragmentado y si QuickTime y el reproductor de Windows lo abren y permiten avanzar.
-3. Si el codificador H.264 de Chrome acepta más de 4096×2304 (pantallas 5K).
-4. Cómo pedir los píxeles físicos en cada fuente y qué devuelve `getSettings()` en pantallas con escalado.
-5. Audio del sistema con ventana y con pantalla en macOS 14.2+ con Chrome 141+, y en Linux.
-6. `showSaveFilePicker` en una página de extensión.
-7. Avisos de permisos al instalar.
-8. Qué pasa con el tamaño del vídeo al redimensionar la ventana grabada.
-9. Reproducir y guardar un MP4 al que le falta el último fragmento (recuperación).
+1. El selector abierto desde el offscreen con una persona eligiendo (sin selección automática).
+2. AAC en Windows y macOS con `isTypeSupported`.
+3. QuickTime y reproductor de Windows con el MP4 fragmentado (y los avisos de marcas de tiempo de la Fase 1 §2).
+4. Tope real del codificador del sistema (pantallas 5K).
+5. Audio del sistema con ventana y pantalla en macOS 14.2+ y Windows; que la pestaña grabada siga sonando.
+6. Redimensionar la ventana grabada.
+7. Diálogo Guardar como en la vista previa.
 
 ## 9. Estructura de carpetas
 
 ```
-grabador-chrome/
+chrome-recorder/
 ├── manifest.json
 ├── _locales/es/messages.json
-├── background/   service-worker.js, estado.js
-├── offscreen/    grabadora.html, grabadora.js
-├── popup/        popup.html, popup.js, popup.css
-├── superposicion/superposicion.js
-├── vista/        vista.html, vista.js, vista.css
-├── comun/        config.js, almacen.js, nombre.js, calidad.js, mensajes.js, estilo.css
-├── fuentes/      Outfit, JetBrains Mono (woff2) + licencias OFL
-├── iconos/       16, 32, 48, 128 (reposo) y variante «grabando»
-├── pruebas/      nombre.test.js, calidad.test.js, estado.test.js
-├── docs/         especificacion.md, fase1-diagnostico.md
-└── README.md     instalación, uso y limitaciones conocidas
+├── background/    service-worker.js, estado.js
+├── offscreen/     grabadora.html, grabadora.js
+├── popup/         popup.html, popup.js, popup.css
+├── superposicion/ superposicion.js
+├── vista/         vista.html, vista.js, vista.css
+├── comun/         config.js, almacen.js, nombre.js, calidad.js, codec.js, mensajes.js, estilo.css
+├── fuentes/       Outfit, JetBrains Mono (woff2) + licencias OFL
+├── iconos/        16, 32, 48, 128 (reposo) y variante «grabando»
+├── pruebas/       unitarias (*.test.js), integración, fase1/
+├── docs/          especificacion.md, fase1-diagnostico.md
+└── README.md      instalación, uso y limitaciones conocidas
 ```
-
-## 10. Repositorio
-
-El código va en un **repositorio nuevo**. Yo no puedo crearlo: hace falta que lo crees en GitHub (nombre sugerido `DipesaGroup/grabador-chrome`, privado) y que lo añadas a la sesión. Esta especificación será su primer commit.

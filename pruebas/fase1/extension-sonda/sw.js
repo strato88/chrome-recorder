@@ -14,5 +14,5 @@ self.gdmOffscreen = async () => {
   const ex = await chrome.runtime.getContexts({contextTypes: ['OFFSCREEN_DOCUMENT']});
   if (ex.length) await chrome.offscreen.closeDocument();
   await chrome.offscreen.createDocument({url: 'off.html', reasons: ['DISPLAY_MEDIA'], justification: 'grabar pantalla'});
-  return chrome.runtime.sendMessage({tipo: 'gdm'});
+  return chrome.runtime.sendMessage({tipo: 'gdm', surf: self.SURF});
 };

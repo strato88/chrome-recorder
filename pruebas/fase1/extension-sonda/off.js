@@ -20,9 +20,9 @@ chrome.runtime.onMessage.addListener((m, s, resp) => {
 });
 chrome.runtime.onMessage.addListener((m, s, resp) => {
   if (m.tipo !== 'gdm') return;
-  navigator.mediaDevices.getDisplayMedia({video: true, audio: true, systemAudio: 'include'}).then(st => {
+  navigator.mediaDevices.getDisplayMedia({video: {displaySurface: m.surf || 'monitor'}, audio: true, systemAudio: 'include'}).then(st => {
     const s = st.getVideoTracks()[0].getSettings(); const k = st.getTracks().map(t => t.kind); st.getTracks().forEach(t => t.stop());
-    resp({ok: true, w: s.width, h: s.height, surf: s.displaySurface, pistas: k});
+    resp({ok: true, w: s.width, h: s.height, surf: s.displaySurface, pistas: k, label: st.getVideoTracks()[0].label});
   }).catch(e => resp({ok: false, err: e.name + ': ' + e.message}));
   return true;
 });

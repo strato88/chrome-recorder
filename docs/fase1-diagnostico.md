@@ -86,6 +86,17 @@ Según la [lista oficial de permisos](https://developer.chrome.com/docs/extensio
 
 Cada `ondataavailable` con `timeslice` entrega fragmentos completos. Un archivo formado por todos los trozos menos el último lo leen ffprobe (con duración) y ffmpeg (lo descodifica entero). Recuperar tras un cierre de Chrome es viable tal como dice la especificación.
 
+### Añadido tras las decisiones: pestaña con el selector
+
+`getDisplayMedia({video: {displaySurface: 'browser'}, audio: true})` en el offscreen, eligiendo una pestaña (`--auto-select-tab-capture-source-by-title`), funciona y trae **pista de audio y de vídeo** (`escenario_offscreen_pestana.js`). La etiqueta de la pista es un identificador interno (`web-contents-media-stream://…`), **no el título de la pestaña**, así que el nombre del archivo usará el título de la pestaña activa al pulsar Grabar.
+
+## Decisiones tomadas (1 de noviembre de 2026)
+
+- **A:** la pestaña se graba con el selector de Chrome. Se quita `tabCapture`.
+- **B:** no se usará en Linux. La extensión lo detecta y lo dice.
+
+La especificación v2 (`docs/especificacion.md`) ya recoge todo esto.
+
 ## Cambios que esto pide en la especificación
 
 1. **Ventana y pantalla:** `getDisplayMedia()` en el offscreen (motivo `DISPLAY_MEDIA`). Se quita `desktopCapture`. El selector se orienta con `displaySurface: 'window' | 'monitor'`; el audio, con `systemAudio`/`windowAudio`.
@@ -94,7 +105,7 @@ Cada `ondataavailable` con `timeslice` entrega fragmentos completos. Un archivo 
 4. **Audio en Linux:** decisión pendiente (ver abajo).
 5. **Guardado:** `showSaveFilePicker` confirmado; sin `downloads`.
 
-## Decisiones que necesito del propietario
+## Decisiones que se pidieron al propietario
 
 **A. Grabar una pestaña.** Para grabarla sin selector hace falta `tabCapture`, y Chrome avisa al instalar de que la extensión puede «leer y cambiar todos tus datos de todos los sitios web» (aunque no lo haga). La alternativa es grabar la pestaña con el mismo selector de Chrome que ventana y pantalla (un clic más, pestaña preseleccionada): ningún permiso con aviso y una sola forma de capturar en el código.
 
