@@ -11,7 +11,8 @@ const TABLA = {
   cuenta_atras: { cuenta_fin: 'grabando', detener: 'inactivo', terminado: 'inactivo', cancelar: 'inactivo', error: 'inactivo' },
   grabando: { pausar: 'en_pausa', detener: 'cerrando', terminado: 'inactivo', error: 'cerrando' },
   en_pausa: { reanudar: 'grabando', detener: 'cerrando', terminado: 'inactivo', error: 'cerrando' },
-  cerrando: { terminado: 'inactivo', error: 'inactivo' },
+  // Un error al cerrar no tira lo grabado: se anota y se espera a `terminado`.
+  cerrando: { terminado: 'inactivo', error: 'cerrando' },
 };
 
 test('FASES', () => {

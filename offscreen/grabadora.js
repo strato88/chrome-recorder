@@ -108,25 +108,26 @@ function alAcabarPista(g) {
 // ---------------------------------------------------------------------------
 
 function empezarRecorder(g) {
-  let rec;
+  let rec = null;
   try {
+    if (g.pruebaRecorderRoto) throw new Error('Recorder roto (prueba)');
     rec = new MediaRecorder(g.stream, {
       mimeType: g.mime,
       videoBitsPerSecond: bitrateVideo(g.ancho, g.alto, g.config.fps, g.config.calidad),
       audioBitsPerSecond: AUDIO_BPS,
     });
+    rec.ondataavailable = (e) => alTrozo(g, rec, e.data);
+    rec.onerror = (e) => alFallarRecorder(g, rec, e);
+    if (g.pruebaVigilante && !g.reintentado) g.descartarHastaMs = Date.now() + DESCARTE_PRUEBA_MS;
+    rec.start(TIMESLICE_MS);
   } catch (e) {
+    soltar(rec);
     fallar(g, 'grabadora', String(e?.message ?? e));
     return;
   }
-  rec.ondataavailable = (e) => alTrozo(g, rec, e.data);
-  rec.onerror = (e) => alFallarRecorder(g, rec, e);
   g.recorder = rec;
-  g.grabado = true;
   g.primerTrozo = false;
   g.acumuladoMs = 0;
-  if (g.pruebaVigilante && !g.reintentado) g.descartarHastaMs = Date.now() + DESCARTE_PRUEBA_MS;
-  rec.start(TIMESLICE_MS);
   if (g.pausado) {
     rec.pause();
     g.desdeMs = null;
@@ -138,6 +139,7 @@ function empezarRecorder(g) {
 
 function grabar(g) {
   if (g.grabado || g.deteniendo) return;
+  g.grabado = true; // desde aquí, toda salida termina con un único `terminado`
   empezarRecorder(g);
   if (vigente(g)) g.reloj = setInterval(() => alTic(g), PROGRESO_MS);
 }
@@ -152,6 +154,7 @@ function alTrozo(g, rec, blob) {
   g.escrituras = g.escrituras.then(async () => {
     if (g.sinEspacio) return;
     try {
+      if (g.pruebaSinEspacio) throw new DOMException('Sin espacio (prueba)', 'QuotaExceededError');
       await almacen.anadirTrozo(g.sesionId, n, blob);
       g.bytes += blob.size;
     } catch (e) {
@@ -297,7 +300,8 @@ const ORDENES = Object.freeze({
   pausar: conContexto(pausar),
   reanudar: conContexto(reanudar),
   detener: conContexto((g) => { detener(g); }), // contesta ya; el final llega con `terminado`
-  cancelar: conContexto(descartar), // contesta cuando la sesión está borrada
+  // Contesta cuando la sesión está borrada; sin `terminado`: el orquestador ya está en reposo.
+  cancelar: conContexto((g) => descartar(g, { avisar: false })),
   // Solo de prueba.
   probar_fin: conContexto((g) => {
     if (!g.modoPrueba || !g.pista) return;
@@ -305,6 +309,8 @@ const ORDENES = Object.freeze({
     g.pista.dispatchEvent(new Event('ended'));
   }),
   probar_vigilante: conContexto((g) => { if (g.modoPrueba) g.pruebaVigilante = true; }),
+  probar_sin_espacio: conContexto((g) => { if (g.modoPrueba) g.pruebaSinEspacio = true; }),
+  probar_recorder_roto: conContexto((g) => { if (g.modoPrueba) g.pruebaRecorderRoto = true; }),
 });
 
 chrome.runtime.onMessage.addListener((m, remitente, responder) => {

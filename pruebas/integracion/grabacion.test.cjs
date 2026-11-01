@@ -100,6 +100,7 @@ async function limpiar(ext) {
   await esperarFase(sw, 'inactivo', 30000);
   await sw.evaluate(async () => {
     for (const s of await self.grabador.almacen.listarSesiones()) await self.grabador.almacen.borrarSesion(s.id);
+    self.pestanasAbiertas.length = 0;
     await chrome.storage.local.remove('limitesPrueba');
     await chrome.storage.local.set({ modoPrueba: true });
   });
@@ -252,6 +253,72 @@ test('vigilante', T, async () => {
   const r = await sondear(sw, inicial.sesionId);
   assert.equal(r.video.codec_name, 'h264');
   assert.ok(r.duracion > 1, `duración ${r.duracion}`);
+});
+
+// Ronda de corrección 1 ----------------------------------------------------
+
+// Cancelar no debe esperar a que la grabadora conteste a través de la cola.
+async function cancelarRapido(sw, faseEsperada) {
+  const t0 = Date.now();
+  const e = await aplicar(sw, 'cancelar');
+  const msCancelar = Date.now() - t0;
+  assert.equal(e?.fase, 'inactivo', `cancelar desde ${faseEsperada}`);
+  assert.ok(msCancelar < 1000, `cancelar tardó ${msCancelar} ms`);
+  const t1 = Date.now();
+  const otra = await iniciar(sw);
+  const msIniciar = Date.now() - t1;
+  assert.equal(otra?.fase, 'eligiendo');
+  assert.ok(msIniciar < 1000, `iniciar tras cancelar tardó ${msIniciar} ms`);
+}
+
+test('cancelar en eligiendo no se bloquea', T, async () => {
+  const { sw } = ext;
+  const e = await iniciar(sw);
+  assert.equal(e.fase, 'eligiendo');
+  await cancelarRapido(sw, 'eligiendo');
+});
+
+test('cancelar en la cuenta atrás no se bloquea', T, async () => {
+  const { sw } = ext;
+  await iniciar(sw);
+  await esperarFase(sw, 'cuenta_atras');
+  await cancelarRapido(sw, 'cuenta_atras');
+});
+
+test('un error de escritura al detener conserva lo grabado', T, async () => {
+  const { sw, extId } = ext;
+  const inicial = await iniciar(sw);
+  await esperarFase(sw, 'grabando');
+  await esperar(async () => (await estado(sw)).bytes > 0, { que: 'el primer trozo' });
+  await dormir(4500); // unos cuantos trozos escritos antes del fallo
+  const antes = (await estado(sw)).bytes;
+  await alOffscreen(sw, 'probar_sin_espacio'); // el siguiente anadirTrozo lanza QuotaExceededError
+  await aplicar(sw, 'detener'); // puede llegar tarde si un trozo periódico ya ha fallado
+  await esperarVista(sw, extId, inicial.sesionId);
+  const fin = await esperarFase(sw, 'inactivo');
+  assert.equal(fin.error?.codigo, 'sin_espacio');
+  const sesion = await sw.evaluate((id) => self.grabador.almacen.leerSesion(id), inicial.sesionId);
+  assert.equal(sesion?.estado, 'terminada');
+  assert.ok(sesion.bytes >= antes && sesion.bytes > 0, `bytes ${sesion.bytes} (antes ${antes})`);
+  const r = await sondear(sw, inicial.sesionId);
+  assert.equal(r.video.codec_name, 'h264');
+  assert.ok(r.duracion > 1, `duración ${r.duracion}`);
+  assert.equal(await offscreens(sw), 0);
+});
+
+test('si el recorder no arranca, se vuelve a reposo sin restos', T, async () => {
+  const { sw } = ext;
+  await iniciar(sw);
+  await esperarFase(sw, 'cuenta_atras');
+  await alOffscreen(sw, 'probar_recorder_roto');
+  const fin = await esperar(async () => {
+    const x = await estado(sw);
+    return x.fase === 'inactivo' && x;
+  }, { timeout: 15000, que: 'la vuelta a inactivo' });
+  assert.equal(fin.error?.codigo, 'grabadora');
+  await esperar(async () => (await offscreens(sw)) === 0, { que: 'sin offscreen' });
+  assert.deepEqual(await sesiones(sw), []);
+  assert.deepEqual(await sw.evaluate(() => self.pestanasAbiertas), [], 'no se abre la vista');
 });
 
 // ---------------------------------------------------------------------------

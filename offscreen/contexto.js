@@ -30,7 +30,7 @@ export function contexto(m) {
     alto: 0,
     avisos: [],
     creando: null, // promesa de crearSesion en curso
-    grabado: false, // ha llegado a arrancar un MediaRecorder
+    grabado: false, // ha llegado `grabar`: desde aquí toda salida manda un `terminado`
     n: 0,
     bytes: 0,
     escrituras: Promise.resolve(), // cadena de anadirTrozo, en orden
@@ -45,6 +45,8 @@ export function contexto(m) {
     reloj: null,
     deteniendo: null,
     pruebaVigilante: false,
+    pruebaSinEspacio: false, // el siguiente anadirTrozo lanza QuotaExceededError
+    pruebaRecorderRoto: false, // el MediaRecorder no se puede crear
     descartarHastaMs: 0,
     fin: false,
   };
@@ -87,23 +89,25 @@ export async function sinPendientes(g) {
 }
 
 // Sin vídeo: se suelta la captura, se borra la sesión y se avisa con terminado.
-export async function descartar(g) {
+// Con `avisar: false` (orden `cancelar`) no se manda: el orquestador ya está en reposo.
+export async function descartar(g, { avisar = true } = {}) {
   if (!vigente(g)) return;
   g.fin = true;
   liberar(g);
   await sinPendientes(g);
   await almacen.borrarSesion(g.sesionId).catch(registrar('borrar la sesión'));
-  await enviar('terminado', { sesionId: g.sesionId, hayVideo: false }).catch(registrar('terminado'));
+  if (avisar) await enviar('terminado', { sesionId: g.sesionId, hayVideo: false }).catch(registrar('terminado'));
 }
 
-// Error que acaba con la grabación sin vídeo (selector, códec, resolución).
+// Error que acaba con la grabación sin vídeo (selector, códec, recorder, resolución).
+// Si ya se está deteniendo, detener() es quien manda el final con lo grabado.
 export async function fallar(g, codigo, detalle = null) {
-  if (!vigente(g)) return;
+  if (!vigente(g) || g.deteniendo) return;
   g.fin = true;
   liberar(g);
   await sinPendientes(g);
   await almacen.borrarSesion(g.sesionId).catch(registrar('borrar la sesión'));
   await enviar('error', { sesionId: g.sesionId, codigo, detalle }).catch(registrar('error'));
-  // Si ya se grababa, el orquestador está en `cerrando` y espera el final.
+  // Tras `grabar`, el orquestador está en `cerrando` y espera el final.
   if (g.grabado) await enviar('terminado', { sesionId: g.sesionId, hayVideo: false }).catch(registrar('terminado'));
 }

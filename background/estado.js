@@ -11,7 +11,8 @@ const TABLA = Object.freeze({
   cuenta_atras: Object.freeze({ cuenta_fin: 'grabando', detener: 'inactivo', terminado: 'inactivo', cancelar: 'inactivo', error: 'inactivo' }),
   grabando: Object.freeze({ pausar: 'en_pausa', detener: 'cerrando', terminado: 'inactivo', error: 'cerrando' }),
   en_pausa: Object.freeze({ reanudar: 'grabando', detener: 'cerrando', terminado: 'inactivo', error: 'cerrando' }),
-  cerrando: Object.freeze({ terminado: 'inactivo', error: 'inactivo' }),
+  // Un error al cerrar se anota y se sigue esperando a `terminado`, que trae lo grabado.
+  cerrando: Object.freeze({ terminado: 'inactivo', error: 'cerrando' }),
 });
 
 const ATAJOS = Object.freeze({

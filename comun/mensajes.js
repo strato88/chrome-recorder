@@ -26,6 +26,8 @@ export const A_GRABADORA = Object.freeze({
   // Solo de prueba: la grabadora los ignora si `abrir` no trajo modoPrueba.
   probar_fin: 'probar_fin',
   probar_vigilante: 'probar_vigilante',
+  probar_sin_espacio: 'probar_sin_espacio',
+  probar_recorder_roto: 'probar_recorder_roto',
 });
 
 export const ERRORES = Object.freeze(['cancelado', 'linux', 'sin_mp4', 'sin_espacio', 'grabadora', 'resolucion']);

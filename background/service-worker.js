@@ -239,25 +239,41 @@ export async function actualizarInsignia(estado) {
 const ORDENES = new Set(['pausar', 'reanudar', 'detener', 'cancelar']);
 const DE_GRABADORA = new Set(['captura_lista', 'terminado', 'error']);
 
-function atender(m, remitente) {
-  const deLaExtension = remitente.id === chrome.runtime.id
-    && String(remitente.url ?? '').startsWith(chrome.runtime.getURL(''));
-  const deLaGrabadora = deLaExtension && remitente.url.startsWith(chrome.runtime.getURL(URL_GRABADORA));
-  const { tipo } = m;
-  if (tipo === AL_ORQUESTADOR.iniciar && deLaExtension && !deLaGrabadora) {
+const esDeLaExtension = (remitente) => remitente.id === chrome.runtime.id
+  && String(remitente.url ?? '').startsWith(chrome.runtime.getURL(''));
+const esDeLaGrabadora = (remitente) => esDeLaExtension(remitente)
+  && remitente.url.startsWith(chrome.runtime.getURL(URL_GRABADORA));
+
+// Órdenes del popup, la superposición o los atajos: se contesta con el estado nuevo.
+function deFuera(m, remitente) {
+  if (m.tipo === AL_ORQUESTADOR.iniciar && esDeLaExtension(remitente)) {
     return aplicar('iniciar', { config: m.config, tituloPestana: m.tituloPestana, pestanaId: m.pestanaId });
   }
-  if (ORDENES.has(tipo) && remitente.id === chrome.runtime.id && !deLaGrabadora) return aplicar(tipo);
-  if (!deLaGrabadora || typeof m.sesionId !== 'string') return null;
-  if (DE_GRABADORA.has(tipo)) return aplicar(tipo, m);
-  if (tipo === AL_ORQUESTADOR.progreso) return progreso(m);
-  if (tipo === AL_ORQUESTADOR.aviso && AVISOS.includes(m.codigo)) return aviso(m);
+  if (ORDENES.has(m.tipo) && remitente.id === chrome.runtime.id) return aplicar(m.tipo);
+  return null;
+}
+
+// Noticias de la grabadora.
+function deGrabadora(m) {
+  if (typeof m.sesionId !== 'string') return null;
+  if (DE_GRABADORA.has(m.tipo)) return aplicar(m.tipo, m);
+  if (m.tipo === AL_ORQUESTADOR.progreso) return progreso(m);
+  if (m.tipo === AL_ORQUESTADOR.aviso && AVISOS.includes(m.codigo)) return aviso(m);
   return null;
 }
 
 chrome.runtime.onMessage.addListener((m, remitente, responder) => {
   if (!m || typeof m.tipo !== 'string' || m.destino) return false; // no es para el orquestador
-  const resultado = atender(m, remitente);
+  if (esDeLaGrabadora(remitente)) {
+    // Se contesta ya, sin esperar a la cola: la cola puede estar esperando a la
+    // propia grabadora (p. ej. a que conteste a `cancelar`) y se bloquearían.
+    const trabajo = deGrabadora(m);
+    if (!trabajo) return false;
+    trabajo.catch((e) => console.error('Grabador:', e));
+    responder({ ok: true });
+    return false;
+  }
+  const resultado = deFuera(m, remitente);
   if (!resultado) return false;
   resultado.then(responder, (e) => { console.error('Grabador:', e); responder(null); });
   return true;
