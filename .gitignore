@@ -1,2 +1,5 @@
 node_modules/
 *.mp4
+
+# Ajustes locales de Claude Code (permisos y preferencias de cada equipo)
+.claude/settings.local.json
